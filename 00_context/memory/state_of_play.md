@@ -2,78 +2,66 @@
 **Last updated**: 2026-03-30
 
 ## Current Phase
-Phase 3: Budget Planning — **COMPLETE** (7/7 issues)
+Phase 4: Auth & Automation — **IN PROGRESS** (1/9 issues done)
 
 ## Active Milestone
-M3: Budget Planning — 7/7 issues complete
+M4: Auth & Automation — 1/9 issues complete (CHA-199 Auth0 setup done)
 Linear: https://linear.app/chart-reporter/project/church-budget-tool-1028413ce92d
 
 ## Linear Issue Status
 | Issue | Title | Agent | Status |
 |-------|-------|-------|--------|
-| CHA-192 | Budget data service (load, save, validate YAML) | Felicity | Done |
-| CHA-193 | Budget editing UI (view and edit budget line items) | Felicity + Jimmy | Done |
-| CHA-194 | Property what-if scenarios | Felicity + Superman | Done |
-| CHA-195 | Payroll what-if scenarios and diocese scale intake | Felicity | Done |
-| CHA-196 | Budget approval workflow (draft → proposed → approved) | Felicity | Done |
-| CHA-197 | Budget comparison view (draft vs current vs prior year) | Felicity + Superman | Done |
-| CHA-198 | Security review: Phase 3 pre-deploy | Kryptonite | Done |
+| CHA-199 | Set up Auth0 tenant | Human | Done |
+| CHA-200 | CSRF middleware | Kryptonite + Felicity | Backlog |
+| CHA-201 | Auth0 integration service (OIDC, JWT, roles) | Felicity | Backlog |
+| CHA-202 | Auth middleware + route protection | Felicity + Kryptonite | Backlog |
+| CHA-203 | Login/logout UI (Auth0 Universal Login) | Jimmy + Felicity | Backlog |
+| CHA-204 | Payroll data redaction for staff role | Felicity | Backlog |
+| CHA-205 | Monthly Xero sync endpoint | Felicity | Backlog |
+| CHA-206 | Historical data verification | Felicity + Superman | Backlog |
+| CHA-207 | Security review: Phase 4 pre-deploy | Kryptonite | Backlog |
 
-## Key Deliverables — M3
-| Component | Location | Tests |
-|-----------|----------|-------|
-| Budget Pydantic models | `src/app/models/budget.py` | — |
-| Budget data service (CRUD, versioning, changelog) | `src/app/services/budget.py` | 34 |
-| Budget editing UI (view/edit, inline htmx) | `src/app/routers/budget.py`, `src/app/templates/budget.html` | 15 |
-| Budget line partial | `src/app/templates/partials/budget_line.html` | — |
-| Budget approval workflow | `src/app/routers/budget_workflow.py` | 15 |
-| Budget history partial | `src/app/templates/partials/budget_history.html` | — |
-| Property scenario service | `src/app/services/property_scenarios.py` | 20 |
-| Property scenario routes | `src/app/routers/property_scenarios.py` | — |
-| Property scenario partial | `src/app/templates/partials/property_scenarios.html` | — |
-| Payroll scenario service | `src/app/services/payroll_scenarios.py` | 30 |
-| Payroll scenario routes | `src/app/routers/payroll_scenarios.py` | — |
-| Payroll scenario partial | `src/app/templates/partials/payroll_scenarios.html` | — |
-| Budget comparison service | `src/app/services/budget_comparison.py` | 18 |
-| Budget comparison routes | `src/app/routers/budget_comparison.py` | — |
-| Budget comparison template | `src/app/templates/budget_comparison.html` | — |
-| Security audit report | `00_context/security/m3_security_audit.md` | 19 |
+## Wave Plan — M4
+| Wave | Issues | Dependencies |
+|------|--------|-------------|
+| 0 | CHA-199 Auth0 setup (Done) | None |
+| 1 | CHA-200 CSRF + CHA-201 Auth0 service | None (parallel) |
+| 2 | CHA-202 Middleware + CHA-203 Login UI + CHA-204 Payroll redaction | Wave 1 |
+| 3 | CHA-205 Sync + CHA-206 Verification | Wave 2 |
+| 4 | CHA-207 Security review | All above |
 
-## Routes Added — M3
-| Route | View |
-|-------|------|
-| `/budget/{year}` | Budget view (all categories, status badge) |
-| `/budget/{year}?edit=true` | Budget edit mode (inline htmx) |
-| `/budget/{year}/line/{section}/{key}/{item}` | Inline line item update (PUT) |
-| `/budget/{year}/notes/{section}/{key}` | Section notes update (PUT) |
-| `/budget/{year}/status` | Status transition (POST) |
-| `/budget/{year}/totals` | Live totals partial |
-| `/budget/{year}/transition` | Workflow status transition |
-| `/budget/{year}/create-amendment` | Amend approved budget |
-| `/budget/{year}/history` | Changelog/history view |
-| `/budget/{year}/compare` | Side-by-side comparison (draft vs current vs prior) |
-| `/budget/create-draft` | Create new draft budget |
-| `/budget/scenarios/property/{year}` | Property what-if scenarios |
-| `/budget/scenarios/property/{year}/preview` | Property scenario preview |
-| `/budget/payroll-scenarios` | Payroll scenario modelling |
+## Role Model
+| Role | Who | Budget Edit | Payroll Detail | Payroll Scenarios |
+|------|-----|------------|---------------|-------------------|
+| admin | Treasurer, Rector | Full read/write | Individual amounts | Full access |
+| board | Wardens | Read-only | Individual amounts | View-only |
+| staff | Church staff | Read-only | Rollup totals only | Blocked (403) |
+
+## Auth0 Setup
+- Tenant created, keys in `.env.local`
+- Localhost callback URLs configured
+- No custom domain yet (VPS deploy pending)
+- MFA available
 
 ## Test Suite
-478 tests passing, 6 pre-existing failures (tracking matrix — needs live Xero), ~3.7s total
-
-## Security Findings — M3
-- 6 issues fixed (input validation, key injection, XSS, user spoofing, amount bounds, year range)
-- 2 deferred (CSRF → M4, changelog integrity → accepted risk)
-- Full report: `00_context/security/m3_security_audit.md`
-
-## Feedback Notes
-- Balance sheet view and tracking matrix need revisiting once live Xero data is connected
-- Xero tracking categories for 2026: "Congregations" and "Ministry & Funds"
-- CSRF middleware deferred to Phase 4 (auth milestone)
+505 tests passing, 6 pre-existing failures (tracking matrix — needs live Xero), ~5.5s total
 
 ## Prior Milestones
 - M1: Foundation (MVP) — 100% complete
 - M2: Reporting & Property — 100% complete (13/13 issues)
+- M3: Budget Planning — 100% complete (7/7 issues, 505 tests)
 
-## Next Phase
-Phase 4: Auth & Automation — Not yet planned in Linear.
-Key areas: Firebase Auth, scheduled auto-sync, n8n notifications, historical data verification, CSRF middleware.
+## Key Deliverables — M3 (just completed)
+- Budget data service with YAML CRUD, changelog, optimistic concurrency
+- Budget editing UI with inline htmx, year selector, reference columns, forecast
+- Approval workflow (draft → proposed → approved) with lock/unlock
+- Property and payroll what-if scenario modelling
+- Budget comparison view (draft vs current vs prior year)
+- Security hardening (input validation, XSS prevention, path traversal)
+
+## Feedback Notes
+- Auth0 chosen over homebrew auth — payroll data requires MFA capability
+- Supabase considered but rejected — would require rewriting entire file-based data layer
+- n8n integration deferred — non-critical once tool is functional
+- Balance sheet view and tracking matrix need revisiting once live Xero data is connected
+- Xero tracking categories for 2026: "Congregations" and "Ministry & Funds"

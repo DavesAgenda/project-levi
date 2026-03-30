@@ -102,3 +102,19 @@
 **Rationale**: Running `git commit` inside a Docker web request is fragile — concurrency lock issues, git config requirements, no push = no backup, subprocess error handling complexity. File-based approach is simpler and more robust: append-only changelog JSON per budget year (`budgets/{year}.changelog.json`), prior versions saved to `budgets/history/{year}_v{n}.yaml`, optimistic concurrency via file mtime comparison. Git versioning happens naturally through manual or CI commits of the repo — not from the app process.
 **Agent**: Perry (architecture decision prompted by user question)
 **Impact**: CHA-192 and CHA-196 updated. No subprocess git calls in budget save path. Changelog service replaces git commit audit trail. Security review (CHA-198) scope simplified — no git injection to audit.
+
+---
+
+## 2026-03-30 — Auth0 for authentication (not homebrew, not Supabase)
+**Decision**: Use Auth0 free tier for user authentication. Not rolling our own (bcrypt + signed cookies) and not migrating storage to Supabase.
+**Rationale**: The app handles financial data including individual payroll — passphrase auth without MFA is insufficient. Auth0 provides: MFA (one toggle), brute force protection, anomaly detection, audit logs, OIDC standard. Free tier covers 7,500 MAU (need ~10). Supabase was considered but would require rewriting the entire file-based data layer (15 services, 505 tests) for marginal benefit — RLS is unnecessary with one org and no multi-tenancy. Auth0 plugs the auth gap without touching working code.
+**Agent**: Perry (architecture decision prompted by user security concern)
+**Impact**: M4 Wave 1 adds `authlib` dependency. Auth0 tenant already set up (keys in `.env.local`). Role mapping via `config/roles.yaml` — 4 roles: admin (treasurer/rector), board (wardens), staff (limited payroll visibility).
+
+---
+
+## 2026-03-30 — Four-tier role model with payroll redaction
+**Decision**: Four roles — `admin` (treasurer/rector, full access), `board` (wardens, read-only full visibility), `staff` (read-only, payroll detail redacted). Staff see rollup totals but not individual names/salaries/PCR.
+**Rationale**: Payroll data is sensitive — staff should not see each other's salary details. Rector needs full access same as treasurer. Board (wardens) need full visibility for governance oversight but not edit capability.
+**Agent**: Perry (prompted by user requirement)
+**Impact**: CHA-204 implements payroll redaction. Service layer returns filtered data for staff role. Templates use `{% if not redact_payroll %}` blocks. `/budget/payroll-scenarios` returns 403 for staff.
