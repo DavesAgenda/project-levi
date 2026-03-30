@@ -1,0 +1,32 @@
+{# Partial for a single budget line item — returned by htmx PUT after inline edit #}
+<tr id="line-{{ section_type }}-{{ section_key }}-{{ item.key }}" class="border-b border-muted/50 hover:bg-muted/20">
+  <td class="py-2 text-text-body">
+    {{ item.label }}
+    {% if item.computed %}
+      <span class="ml-1 text-caption text-neutral">(computed)</span>
+    {% endif %}
+  </td>
+  <td class="py-2 text-right">
+    {% if edit_mode and not item.computed %}
+      <form hx-put="/budget/{{ year }}/line/{{ section_type }}/{{ section_key }}/{{ item.key }}"
+            hx-target="#line-{{ section_type }}-{{ section_key }}-{{ item.key }}"
+            hx-swap="outerHTML"
+            hx-trigger="change, keydown[key=='Enter'] from:find input"
+            class="inline">
+        <input type="hidden" name="mtime" value="{{ mtime }}">
+        <input type="text"
+               name="value"
+               value="{{ '{:,.0f}'.format(item.amount) if item.amount is not none else '' }}"
+               placeholder="TBD"
+               class="w-32 text-right font-mono text-figure bg-bg border border-muted rounded px-2 py-1 focus:border-primary focus:outline-none border-success"
+               style="animation: flash-success 0.5s ease-out">
+      </form>
+    {% else %}
+      {% if item.amount is not none %}
+        <span class="font-mono text-figure">${{ "{:,.0f}".format(item.amount) }}</span>
+      {% else %}
+        <span class="text-caption text-neutral italic">TBD</span>
+      {% endif %}
+    {% endif %}
+  </td>
+</tr>

@@ -1,0 +1,169 @@
+{#
+  Sortable Table Component
+  ========================
+  A reusable, sortable data table with pinned summary rows.
+  Uses Alpine.js for client-side sorting.
+
+  Parameters:
+    id        : string  — unique table ID
+    columns   : list of dicts — [{label, key, align, format}]
+                  align: "left" | "right" (default: "right" for all except first)
+                  format: "currency" | "percent" | "string" (default: "string")
+    rows      : list of dicts — data rows, each dict keyed by column.key
+    summary   : dict or none — summary/total row pinned to bottom
+    sort_by   : string — default sort column key (default: first column)
+    sort_dir  : string — "asc" | "desc" (default: "asc")
+
+  Usage:
+    {% from "components/sortable_table.html" import sortable_table %}
+    {{ sortable_table(id="income", columns=[...], rows=row_data, summary=summary_data) }}
+#}
+
+{% macro sortable_table(id, columns, rows, summary=none, sort_by=none, sort_dir="asc") %}
+{% set col_keys = columns | map(attribute='key') | list %}
+<div class="overflow-x-auto">
+  <table class="w-full border-collapse" id="table-{{ id }}">
+    <thead class="bg-muted">
+      <tr>
+        {% for col in columns %}
+        <th class="text-caption font-semibold uppercase px-6 py-2 cursor-pointer select-none hover:text-primary transition-colors {{ 'text-left' if col.align == 'left' else 'text-right' }}"
+            data-col="{{ loop.index0 }}"
+            data-sort-type="{{ 'string' if col.format == 'string' else 'number' }}">
+          {{ col.label }}
+          <span class="sort-icon ml-1 text-xs text-neutral">&#x21C5;</span>
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows | sort(attribute=(sort_by or columns[0].key)) %}
+      <tr class="border-b border-muted {{ 'bg-surface' if loop.index0 % 2 == 0 else 'bg-bg' }}" data-sortable-row>
+        {% for col in columns %}
+        {% set val = row[col.key] %}
+        <td class="px-6 py-3 {{ 'text-left' if col.align == 'left' else 'text-right' }} {{ 'font-mono' if col.format != 'string' }}"
+            data-value="{{ val if val is not none else -9999 }}">
+          {% if col.format == 'currency' %}
+            ${{ "{:,.0f}".format(val) }}
+          {% elif col.format == 'currency_signed' %}
+            <span class="{% if row.get('_variance_positive') %}text-success{% elif row.get('_variance_negative') %}text-danger{% endif %}">
+              {% if val > 0 %}+{% endif %}${{ "{:,.0f}".format(val) }}
+            </span>
+          {% elif col.format == 'percent_status' %}
+            {% if val is not none %}
+            <span class="{% if row.get('_status') == 'success' %}text-success{% elif row.get('_status') == 'danger' %}text-danger{% elif row.get('_status') == 'warning' %}text-warning{% endif %}">
+              {% if val > 0 %}+{% endif %}{{ val }}%
+            </span>
+            {% else %}
+            <span style="opacity: 0.5;">—</span>
+            {% endif %}
+          {% else %}
+            {{ val }}
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+      {% if summary is not none %}
+      <tr class="bg-muted font-semibold" data-summary-row>
+        {% for col in columns %}
+        {% set val = summary[col.key] %}
+        <td class="px-6 py-3 {{ 'text-left' if col.align == 'left' else 'text-right' }} {{ 'font-mono' if col.format != 'string' }}">
+          {% if col.format == 'currency' %}
+            ${{ "{:,.0f}".format(val) }}
+          {% elif col.format == 'currency_signed' %}
+            <span class="{% if val > 0 %}text-success{% elif val < 0 %}text-danger{% endif %}">
+              {% if val > 0 %}+{% endif %}${{ "{:,.0f}".format(val) }}
+            </span>
+          {% elif col.format == 'percent_status' %}
+            {% if val is not none %}
+              {{ "{:.1f}".format(val) }}%
+            {% else %}—{% endif %}
+          {% else %}
+            {{ val }}
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+(function() {
+  const table = document.getElementById('table-{{ id }}');
+  if (!table) return;
+
+  const headers = table.querySelectorAll('th[data-col]');
+  const tbody = table.querySelector('tbody');
+  let currentCol = null;
+  let currentDir = 'asc';
+
+  // Set initial sort indicator on default column
+  const defaultKey = '{{ sort_by or columns[0].key }}';
+  const defaultIdx = {{ col_keys.index(sort_by or columns[0].key) }};
+  currentCol = defaultIdx;
+  const defaultIcon = headers[defaultIdx].querySelector('.sort-icon');
+  if (defaultIcon) {
+    defaultIcon.innerHTML = '&#x2191;';
+    defaultIcon.style.color = 'var(--primary)';
+  }
+  headers[defaultIdx].style.color = 'var(--primary)';
+
+  headers.forEach(function(th) {
+    th.addEventListener('click', function() {
+      const colIdx = parseInt(th.dataset.col);
+      const sortType = th.dataset.sortType;
+
+      // Toggle direction
+      if (currentCol === colIdx) {
+        currentDir = currentDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        currentCol = colIdx;
+        currentDir = 'asc';
+      }
+
+      // Reset all header styles
+      headers.forEach(function(h) {
+        const icon = h.querySelector('.sort-icon');
+        if (icon) { icon.innerHTML = '&#x21C5;'; icon.style.color = 'var(--neutral)'; }
+        h.style.color = '';
+      });
+
+      // Set active header
+      const activeIcon = th.querySelector('.sort-icon');
+      if (activeIcon) {
+        activeIcon.innerHTML = currentDir === 'asc' ? '&#x2191;' : '&#x2193;';
+        activeIcon.style.color = 'var(--primary)';
+      }
+      th.style.color = 'var(--primary)';
+
+      // Sort data rows only (not summary)
+      const rows = Array.from(tbody.querySelectorAll('tr[data-sortable-row]'));
+      rows.sort(function(a, b) {
+        const aVal = a.children[colIdx].dataset.value;
+        const bVal = b.children[colIdx].dataset.value;
+
+        if (sortType === 'string') {
+          return currentDir === 'asc'
+            ? aVal.localeCompare(bVal)
+            : bVal.localeCompare(aVal);
+        } else {
+          const aNum = parseFloat(aVal) || 0;
+          const bNum = parseFloat(bVal) || 0;
+          return currentDir === 'asc' ? aNum - bNum : bNum - aNum;
+        }
+      });
+
+      // Re-append sorted rows before the summary row
+      const summaryRow = tbody.querySelector('tr[data-summary-row]');
+      rows.forEach(function(row, idx) {
+        // Update zebra striping
+        row.className = 'border-b border-muted ' + (idx % 2 === 0 ? 'bg-surface' : 'bg-bg');
+        tbody.insertBefore(row, summaryRow);
+      });
+    });
+  });
+})();
+</script>
+{% endmacro %}

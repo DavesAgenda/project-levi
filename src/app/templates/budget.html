@@ -1,0 +1,456 @@
+{% extends "base.html" %}
+
+{% block title %}Budget {{ year }} — New Light Budget Tool{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+  {# ── Year Selector ── #}
+  <div class="flex flex-wrap items-center gap-2">
+    {% for by in budget_years %}
+      {% if by.year == year %}
+        <span class="inline-flex items-center px-4 py-2 rounded-btn bg-primary text-white font-medium text-caption">
+          {{ by.label }}
+        </span>
+      {% else %}
+        <a href="/budget/{{ by.year }}"
+           class="inline-flex items-center px-4 py-2 rounded-btn border border-muted text-text font-medium text-caption hover:bg-muted/20 transition-colors">
+          {{ by.label }}
+        </a>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  {# ── Header ── #}
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="font-heading text-h1 text-text">{{ year }} Budget</h1>
+      <div class="flex items-center gap-3 mt-2">
+        {# Status badge #}
+        {% if budget.status.value == "draft" %}
+          <span class="inline-flex items-center px-3 py-1 rounded-badge text-caption font-medium bg-warning/20 text-warning">Draft</span>
+        {% elif budget.status.value == "proposed" %}
+          <span class="inline-flex items-center px-3 py-1 rounded-badge text-caption font-medium bg-primary/20 text-primary">Proposed</span>
+        {% else %}
+          <span class="inline-flex items-center px-3 py-1 rounded-badge text-caption font-medium bg-success/20 text-success">Approved</span>
+        {% endif %}
+        {% if budget.approved_date %}
+          <span class="text-caption text-neutral">Approved {{ budget.approved_date }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      {# Edit / Done toggle #}
+      {% if edit_mode %}
+        <a href="/budget/{{ year }}" class="inline-flex items-center min-h-btn px-4 rounded-btn border border-primary text-primary font-medium hover:bg-primary/10 transition-colors">
+          Done Editing
+        </a>
+      {% elif is_draft %}
+        <a href="/budget/{{ year }}?edit=true" class="inline-flex items-center min-h-btn px-4 rounded-btn bg-primary text-white font-medium hover:bg-primary-hover transition-colors">
+          Edit Budget
+        </a>
+      {% else %}
+        {# Non-draft: show unlock button with confirmation dialog #}
+        <button onclick="document.getElementById('unlock-dialog').showModal()"
+                class="inline-flex items-center min-h-btn px-4 rounded-btn bg-warning/20 text-warning font-medium hover:bg-warning/30 transition-colors">
+          Unlock to Edit
+        </button>
+      {% endif %}
+
+      {# Status transitions #}
+      {% if budget.status.value == "draft" %}
+        <form hx-post="/budget/{{ year }}/status" hx-vals='{"mtime": "{{ mtime }}"}'>
+          <input type="hidden" name="target" value="proposed">
+          <button type="submit" class="inline-flex items-center min-h-btn px-4 rounded-btn border border-primary text-primary font-medium hover:bg-primary/10 transition-colors">
+            Propose to Council
+          </button>
+        </form>
+      {% elif budget.status.value == "proposed" %}
+        <form hx-post="/budget/{{ year }}/status" hx-vals='{"mtime": "{{ mtime }}"}'>
+          <input type="hidden" name="target" value="approved">
+          <button type="submit" class="inline-flex items-center min-h-btn px-4 rounded-btn bg-success text-white font-medium hover:opacity-90 transition-colors">
+            Approve
+          </button>
+        </form>
+        <form hx-post="/budget/{{ year }}/status" hx-vals='{"mtime": "{{ mtime }}"}'>
+          <input type="hidden" name="target" value="draft">
+          <button type="submit" class="inline-flex items-center min-h-btn px-4 rounded-btn border border-neutral text-neutral font-medium hover:bg-muted transition-colors">
+            Revert to Draft
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Unlock Confirmation Dialog ── #}
+  {% if not is_draft %}
+  <dialog id="unlock-dialog" class="rounded-card shadow-card p-0 backdrop:bg-black/50 max-w-md">
+    <div class="p-6">
+      <h3 class="font-heading text-h3 text-text mb-3">Unlock Budget?</h3>
+      <p class="text-text-body mb-4">
+        This budget is <strong class="text-warning">{{ budget.status.value }}</strong>.
+        Editing will revert it to <strong>draft</strong> status. Are you sure?
+      </p>
+      <div class="flex items-center gap-3 justify-end">
+        <button onclick="document.getElementById('unlock-dialog').close()"
+                class="inline-flex items-center min-h-btn px-4 rounded-btn border border-neutral text-neutral font-medium hover:bg-muted transition-colors">
+          Cancel
+        </button>
+        <form hx-post="/budget/{{ year }}/unlock">
+          <input type="hidden" name="mtime" value="{{ mtime }}">
+          <button type="submit"
+                  class="inline-flex items-center min-h-btn px-4 rounded-btn bg-warning text-white font-medium hover:opacity-90 transition-colors">
+            Yes, Unlock and Edit
+          </button>
+        </form>
+      </div>
+    </div>
+  </dialog>
+  {% endif %}
+
+  {# ── Summary bar ── #}
+  <div id="budget-totals" class="bg-surface rounded-card shadow-card p-6 flex flex-wrap items-center justify-center gap-4 text-center">
+    <div>
+      <div class="text-caption text-neutral mb-1">Total Income</div>
+      <span class="font-mono text-figure-lg text-success">${{ "{:,.0f}".format(income_total) }}</span>
+    </div>
+    <span class="text-2xl text-neutral">−</span>
+    <div>
+      <div class="text-caption text-neutral mb-1">Total Expenses</div>
+      <span class="font-mono text-figure-lg text-danger">${{ "{:,.0f}".format(expense_total) }}</span>
+    </div>
+    <span class="text-2xl text-neutral">=</span>
+    <div>
+      <div class="text-caption text-neutral mb-1">Surplus / (Deficit)</div>
+      <span class="font-mono text-figure-lg {% if surplus >= 0 %}text-success{% else %}text-danger{% endif %}">
+        ${{ "{:,.0f}".format(surplus) }}
+      </span>
+    </div>
+  </div>
+
+  {# ── Reference Summary (Prior Year) ── #}
+  {% if ref %}
+  <div class="bg-surface rounded-card shadow-card p-4">
+    <div class="text-caption text-neutral mb-2 font-medium">{{ ref.prior_year }} Reference (Forecast vs Budget)</div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+      <div>
+        <div class="text-caption text-neutral">Forecast Income</div>
+        <span class="font-mono text-figure text-success">${{ "{:,.0f}".format(ref.prior_forecast_income_total) }}</span>
+      </div>
+      <div>
+        <div class="text-caption text-neutral">Budget Income</div>
+        <span class="font-mono text-figure text-text">${{ "{:,.0f}".format(ref.prior_budget_income_total) }}</span>
+      </div>
+      <div>
+        <div class="text-caption text-neutral">Forecast Expenses</div>
+        <span class="font-mono text-figure text-danger">${{ "{:,.0f}".format(ref.prior_forecast_expense_total) }}</span>
+      </div>
+      <div>
+        <div class="text-caption text-neutral">Budget Expenses</div>
+        <span class="font-mono text-figure text-text">${{ "{:,.0f}".format(ref.prior_budget_expense_total) }}</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Macro for variance formatting ── #}
+  {# We define helpers inline since Jinja2 does not support macros mid-block easily #}
+
+  {# ── Income ── #}
+  <div>
+    <h2 class="font-heading text-h2 text-text mb-4 border-b-2 border-success pb-2">Income</h2>
+    {% for section in income_sections %}
+    <div class="mb-6">
+      <h3 class="font-heading text-h3 text-text mb-2">{{ section.label }}</h3>
+      <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b border-muted">
+            <th class="text-left text-caption text-neutral py-2 min-w-[180px]">Account</th>
+            {% if ref %}
+            <th class="text-right text-caption text-neutral py-2 min-w-[100px]">{{ ref.prior_year }} Forecast</th>
+            <th class="text-right text-caption text-neutral py-2 min-w-[100px]">{{ ref.prior_year }} Budget</th>
+            <th class="text-right text-caption text-neutral py-2 min-w-[80px]">Var $</th>
+            <th class="text-right text-caption text-neutral py-2 min-w-[70px]">Var %</th>
+            {% endif %}
+            <th class="text-right text-caption text-neutral py-2 min-w-[120px]">{{ year }} Budget</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in section.line_items %}
+          {% set ref_item = ref.ref_sections[section.key].line_items[item.key] if ref and section.key in ref.ref_sections and item.key in ref.ref_sections[section.key].line_items else none %}
+          <tr id="line-income-{{ section.key }}-{{ item.key }}" class="border-b border-muted/50 hover:bg-muted/20">
+            <td class="py-2 text-text-body">
+              {{ item.label }}
+              {% if item.computed %}
+                <span class="ml-1 text-caption text-neutral">(computed)</span>
+              {% endif %}
+            </td>
+            {% if ref %}
+            {# Forecast — not available at line-item level, show dash #}
+            <td class="py-2 text-right font-mono text-caption text-neutral">—</td>
+            {# Prior budget #}
+            <td class="py-2 text-right">
+              {% if ref_item and ref_item.prior_budget is not none %}
+                <span class="font-mono text-caption text-neutral">${{ "{:,.0f}".format(ref_item.prior_budget) }}</span>
+              {% else %}
+                <span class="text-caption text-neutral">—</span>
+              {% endif %}
+            </td>
+            {# Var $ (budget amount - prior budget) #}
+            {% if ref_item and ref_item.prior_budget is not none and item.amount is not none %}
+              {% set var_dollar = item.amount - ref_item.prior_budget %}
+              <td class="py-2 text-right">
+                <span class="font-mono text-caption {% if var_dollar > 0 %}text-success{% elif var_dollar < 0 %}text-danger{% else %}text-neutral{% endif %}">
+                  {{ "{:+,.0f}".format(var_dollar) }}
+                </span>
+              </td>
+              <td class="py-2 text-right">
+                {% if ref_item.prior_budget != 0 %}
+                  {% set var_pct = (var_dollar / ref_item.prior_budget) * 100 %}
+                  <span class="font-mono text-caption {% if var_pct > 0 %}text-success{% elif var_pct < 0 %}text-danger{% else %}text-neutral{% endif %}">
+                    {{ "{:+.1f}".format(var_pct) }}%
+                  </span>
+                {% else %}
+                  <span class="text-caption text-neutral">—</span>
+                {% endif %}
+              </td>
+            {% else %}
+              <td class="py-2 text-right text-caption text-neutral">—</td>
+              <td class="py-2 text-right text-caption text-neutral">—</td>
+            {% endif %}
+            {% endif %}
+            <td class="py-2 text-right">
+              {% if edit_mode and not item.computed %}
+                <form hx-put="/budget/{{ year }}/line/income/{{ section.key }}/{{ item.key }}"
+                      hx-target="#line-income-{{ section.key }}-{{ item.key }}"
+                      hx-swap="outerHTML"
+                      hx-trigger="change, keydown[key=='Enter'] from:find input"
+                      class="inline">
+                  <input type="hidden" name="mtime" value="{{ mtime }}">
+                  <input type="text"
+                         name="value"
+                         value="{{ '{:,.0f}'.format(item.amount) if item.amount is not none else '' }}"
+                         placeholder="TBD"
+                         class="w-32 text-right font-mono text-figure bg-bg border border-muted rounded px-2 py-1 focus:border-primary focus:outline-none">
+                </form>
+              {% else %}
+                {% if item.amount is not none %}
+                  <span class="font-mono text-figure">${{ "{:,.0f}".format(item.amount) }}</span>
+                {% else %}
+                  <span class="text-caption text-neutral italic">TBD</span>
+                {% endif %}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        {% if section.total is not none %}
+        <tfoot>
+          <tr class="border-t-2 border-muted font-medium">
+            <td class="py-2 text-text">Section Total</td>
+            {% if ref %}
+            <td class="py-2 text-right font-mono text-caption text-neutral">—</td>
+            {% if ref and section.key in ref.ref_sections %}
+              <td class="py-2 text-right font-mono text-caption text-neutral">${{ "{:,.0f}".format(ref.ref_sections[section.key].budget_total) }}</td>
+            {% else %}
+              <td class="py-2 text-right text-caption text-neutral">—</td>
+            {% endif %}
+            <td class="py-2"></td>
+            <td class="py-2"></td>
+            {% endif %}
+            <td class="py-2 text-right font-mono text-figure">${{ "{:,.0f}".format(section.total) }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+      </div>
+      {# Notes #}
+      {% if section.notes or edit_mode %}
+      <div class="mt-2">
+        {% if edit_mode %}
+          <div hx-put="/budget/{{ year }}/notes/income/{{ section.key }}"
+               hx-trigger="change"
+               hx-swap="innerHTML"
+               hx-target="this"
+               class="inline">
+            <input type="hidden" name="mtime" value="{{ mtime }}">
+            <textarea name="notes"
+                      rows="1"
+                      placeholder="Add notes..."
+                      class="w-full text-caption text-neutral border border-muted rounded px-2 py-1 focus:border-primary focus:outline-none resize-none">{{ section.notes or '' }}</textarea>
+          </div>
+        {% elif section.notes %}
+          <span class="text-caption text-neutral italic">{{ section.notes }}</span>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── Expenses ── #}
+  <div>
+    <h2 class="font-heading text-h2 text-text mb-4 border-b-2 border-danger pb-2">Expenses</h2>
+    {% for section in expense_sections %}
+    <div class="mb-6">
+      <h3 class="font-heading text-h3 text-text mb-2">{{ section.label }}</h3>
+      <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b border-muted">
+            <th class="text-left text-caption text-neutral py-2 min-w-[180px]">Account</th>
+            {% if ref %}
+            <th class="text-right text-caption text-neutral py-2 min-w-[100px]">{{ ref.prior_year }} Forecast</th>
+            <th class="text-right text-caption text-neutral py-2 min-w-[100px]">{{ ref.prior_year }} Budget</th>
+            <th class="text-right text-caption text-neutral py-2 min-w-[80px]">Var $</th>
+            <th class="text-right text-caption text-neutral py-2 min-w-[70px]">Var %</th>
+            {% endif %}
+            <th class="text-right text-caption text-neutral py-2 min-w-[120px]">{{ year }} Budget</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in section.line_items %}
+          {% set ref_item = ref.ref_sections[section.key].line_items[item.key] if ref and section.key in ref.ref_sections and item.key in ref.ref_sections[section.key].line_items else none %}
+          <tr id="line-expenses-{{ section.key }}-{{ item.key }}" class="border-b border-muted/50 hover:bg-muted/20">
+            <td class="py-2 text-text-body">
+              {{ item.label }}
+              {% if item.computed %}
+                <span class="ml-1 text-caption text-neutral">(computed)</span>
+              {% endif %}
+            </td>
+            {% if ref %}
+            {# Forecast — not available at line-item level, show dash #}
+            <td class="py-2 text-right font-mono text-caption text-neutral">—</td>
+            {# Prior budget #}
+            <td class="py-2 text-right">
+              {% if ref_item and ref_item.prior_budget is not none %}
+                <span class="font-mono text-caption text-neutral">${{ "{:,.0f}".format(ref_item.prior_budget) }}</span>
+              {% else %}
+                <span class="text-caption text-neutral">—</span>
+              {% endif %}
+            </td>
+            {# Var $ (budget amount - prior budget) #}
+            {% if ref_item and ref_item.prior_budget is not none and item.amount is not none %}
+              {% set var_dollar = item.amount - ref_item.prior_budget %}
+              <td class="py-2 text-right">
+                <span class="font-mono text-caption {% if var_dollar > 0 %}text-danger{% elif var_dollar < 0 %}text-success{% else %}text-neutral{% endif %}">
+                  {{ "{:+,.0f}".format(var_dollar) }}
+                </span>
+              </td>
+              <td class="py-2 text-right">
+                {% if ref_item.prior_budget != 0 %}
+                  {% set var_pct = (var_dollar / ref_item.prior_budget) * 100 %}
+                  <span class="font-mono text-caption {% if var_pct > 0 %}text-danger{% elif var_pct < 0 %}text-success{% else %}text-neutral{% endif %}">
+                    {{ "{:+.1f}".format(var_pct) }}%
+                  </span>
+                {% else %}
+                  <span class="text-caption text-neutral">—</span>
+                {% endif %}
+              </td>
+            {% else %}
+              <td class="py-2 text-right text-caption text-neutral">—</td>
+              <td class="py-2 text-right text-caption text-neutral">—</td>
+            {% endif %}
+            {% endif %}
+            <td class="py-2 text-right">
+              {% if edit_mode and not item.computed %}
+                <form hx-put="/budget/{{ year }}/line/expenses/{{ section.key }}/{{ item.key }}"
+                      hx-target="#line-expenses-{{ section.key }}-{{ item.key }}"
+                      hx-swap="outerHTML"
+                      hx-trigger="change, keydown[key=='Enter'] from:find input"
+                      class="inline">
+                  <input type="hidden" name="mtime" value="{{ mtime }}">
+                  <input type="text"
+                         name="value"
+                         value="{{ '{:,.0f}'.format(item.amount) if item.amount is not none else '' }}"
+                         placeholder="TBD"
+                         class="w-32 text-right font-mono text-figure bg-bg border border-muted rounded px-2 py-1 focus:border-primary focus:outline-none">
+                </form>
+              {% else %}
+                {% if item.amount is not none %}
+                  <span class="font-mono text-figure">${{ "{:,.0f}".format(item.amount) }}</span>
+                {% else %}
+                  <span class="text-caption text-neutral italic">TBD</span>
+                {% endif %}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        {% if section.total is not none %}
+        <tfoot>
+          <tr class="border-t-2 border-muted font-medium">
+            <td class="py-2 text-text">Section Total</td>
+            {% if ref %}
+            <td class="py-2 text-right font-mono text-caption text-neutral">—</td>
+            {% if ref and section.key in ref.ref_sections %}
+              <td class="py-2 text-right font-mono text-caption text-neutral">${{ "{:,.0f}".format(ref.ref_sections[section.key].budget_total) }}</td>
+            {% else %}
+              <td class="py-2 text-right text-caption text-neutral">—</td>
+            {% endif %}
+            <td class="py-2"></td>
+            <td class="py-2"></td>
+            {% endif %}
+            <td class="py-2 text-right font-mono text-figure">${{ "{:,.0f}".format(section.total) }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+      </div>
+      {# Notes #}
+      {% if section.notes or edit_mode %}
+      <div class="mt-2">
+        {% if edit_mode %}
+          <div hx-put="/budget/{{ year }}/notes/expenses/{{ section.key }}"
+               hx-trigger="change"
+               hx-swap="innerHTML"
+               hx-target="this"
+               class="inline">
+            <input type="hidden" name="mtime" value="{{ mtime }}">
+            <textarea name="notes"
+                      rows="1"
+                      placeholder="Add notes..."
+                      class="w-full text-caption text-neutral border border-muted rounded px-2 py-1 focus:border-primary focus:outline-none resize-none">{{ section.notes or '' }}</textarea>
+          </div>
+        {% elif section.notes %}
+          <span class="text-caption text-neutral italic">{{ section.notes }}</span>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── Create Draft ── #}
+  <div class="bg-surface rounded-card shadow-card p-6">
+    <h3 class="font-heading text-h3 text-text mb-4">Create New Draft Budget</h3>
+    <form hx-post="/budget/create-draft" class="flex flex-wrap items-end gap-4">
+      <div>
+        <label class="block text-caption text-neutral mb-1">Year</label>
+        <input type="number" name="year" value="{{ year + 1 }}" min="2020" max="2050"
+               class="w-24 border border-muted rounded px-2 py-1 font-mono focus:border-primary focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-caption text-neutral mb-1">Clone From (optional)</label>
+        <input type="number" name="base_year" value="{{ year }}" min="2020" max="2050"
+               class="w-24 border border-muted rounded px-2 py-1 font-mono focus:border-primary focus:outline-none">
+      </div>
+      <button type="submit" class="inline-flex items-center min-h-btn px-6 rounded-btn bg-primary text-white font-medium hover:bg-primary-hover transition-colors">
+        Create Draft
+      </button>
+    </form>
+  </div>
+
+</div>
+
+{# ── Print styles ── #}
+<style>
+  @media print {
+    nav, footer, form, button, a[href*="edit"], dialog { display: none !important; }
+    .shadow-card { box-shadow: none !important; }
+    body { font-size: 11pt; }
+    table { page-break-inside: avoid; }
+  }
+</style>
+{% endblock %}

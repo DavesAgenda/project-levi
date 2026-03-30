@@ -1,0 +1,220 @@
+<!-- Trend Chart partial — returned by htmx for category updates -->
+
+{% if data and data.has_data %}
+
+<!-- Chart card -->
+<div class="bg-surface rounded-card shadow-card border border-outline/20 p-6 mb-6">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="font-heading text-h3">
+      {{ data.primary_category.label }}
+      {% if data.compare_category %}
+        <span class="text-neutral font-normal">vs</span> {{ data.compare_category.label }}
+      {% endif %}
+    </h2>
+    <span class="text-caption text-neutral">
+      {{ data.available_years|first }}–{{ data.available_years|last }}
+      {% if data.primary_category.section == 'income' %}
+        <span class="inline-block ml-2 px-2 py-0.5 rounded-badge bg-success/10 text-success text-xs font-medium">Income</span>
+      {% else %}
+        <span class="inline-block ml-2 px-2 py-0.5 rounded-badge bg-danger/10 text-danger text-xs font-medium">Expense</span>
+      {% endif %}
+    </span>
+  </div>
+
+  <div class="relative" style="height: 360px;">
+    <canvas id="trendChart"></canvas>
+  </div>
+</div>
+
+<!-- Data table -->
+<div class="bg-surface rounded-card shadow-card border border-outline/20 overflow-hidden">
+  <div class="px-6 py-4 border-b border-outline/20">
+    <h3 class="font-heading text-h3">Annual Figures</h3>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-muted/50">
+          <th class="px-6 py-3 text-left font-heading font-semibold text-text">Year</th>
+          <th class="px-6 py-3 text-right font-heading font-semibold text-text">{{ data.primary_category.label }}</th>
+          {% if data.compare_category %}
+          <th class="px-6 py-3 text-right font-heading font-semibold text-text">{{ data.compare_category.label }}</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-outline/10">
+        {% for row in table_rows %}
+        <tr class="hover:bg-muted/30 transition-colors">
+          <td class="px-6 py-3 font-mono font-medium text-text">{{ row.year }}</td>
+          <td class="px-6 py-3 text-right font-mono">
+            {% if row.primary is not none %}
+              ${{ "{:,.0f}".format(row.primary) }}
+            {% else %}
+              <span class="text-neutral italic">—</span>
+            {% endif %}
+          </td>
+          {% if data.compare_category %}
+          <td class="px-6 py-3 text-right font-mono">
+            {% if row.compare is not none %}
+              ${{ "{:,.0f}".format(row.compare) }}
+            {% else %}
+              <span class="text-neutral italic">—</span>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Chart.js initialisation -->
+<script>
+(function() {
+  // Destroy previous chart if it exists
+  const existingChart = Chart.getChart('trendChart');
+  if (existingChart) existingChart.destroy();
+
+  const chartData = {{ chart_json | tojson }};
+  const granularity = '{{ granularity }}';
+
+  // Design tokens
+  const PRIMARY_COLOR = '#ff7300';
+  const PRIMARY_BG = 'rgba(255, 115, 0, 0.12)';
+  const COMPARE_COLOR = '#313638';
+  const COMPARE_BG = 'rgba(49, 54, 56, 0.08)';
+  const GRID_COLOR = 'rgba(96, 105, 92, 0.12)';
+  const FONT_FAMILY = "'Inter', system-ui, sans-serif";
+
+  // Choose labels and data based on granularity
+  let labels, primaryValues, compareValues;
+
+  if (granularity === 'monthly' && chartData.monthly_labels && chartData.monthly_labels.length > 0) {
+    labels = chartData.monthly_labels;
+    primaryValues = chartData.monthly_primary;
+    compareValues = chartData.monthly_compare;
+  } else {
+    labels = chartData.yearly_labels;
+    primaryValues = chartData.yearly_primary;
+    compareValues = chartData.yearly_compare;
+  }
+
+  const datasets = [
+    {
+      label: chartData.primary_label,
+      data: primaryValues,
+      borderColor: PRIMARY_COLOR,
+      backgroundColor: PRIMARY_BG,
+      fill: true,
+      tension: 0.3,
+      borderWidth: 2.5,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      pointBackgroundColor: PRIMARY_COLOR,
+      pointBorderColor: '#fff',
+      pointBorderWidth: 2,
+      spanGaps: false,
+    }
+  ];
+
+  if (compareValues) {
+    datasets.push({
+      label: chartData.compare_label,
+      data: compareValues,
+      borderColor: COMPARE_COLOR,
+      backgroundColor: COMPARE_BG,
+      fill: true,
+      tension: 0.3,
+      borderWidth: 2.5,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      pointBackgroundColor: COMPARE_COLOR,
+      pointBorderColor: '#fff',
+      pointBorderWidth: 2,
+      spanGaps: false,
+    });
+  }
+
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: {
+          display: datasets.length > 1,
+          position: 'top',
+          labels: {
+            font: { family: FONT_FAMILY, size: 13, weight: '500' },
+            usePointStyle: true,
+            pointStyle: 'circle',
+            padding: 20,
+          },
+        },
+        tooltip: {
+          backgroundColor: '#313638',
+          titleFont: { family: FONT_FAMILY, size: 13, weight: '600' },
+          bodyFont: { family: FONT_FAMILY, size: 12 },
+          padding: 12,
+          cornerRadius: 8,
+          displayColors: true,
+          callbacks: {
+            label: function(context) {
+              const val = context.parsed.y;
+              if (val === null || val === undefined) return context.dataset.label + ': no data';
+              return context.dataset.label + ': $' + val.toLocaleString('en-AU', { minimumFractionDigits: 0 });
+            }
+          }
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            font: { family: FONT_FAMILY, size: 12, weight: '500' },
+            color: '#60695c',
+          },
+        },
+        y: {
+          grid: { color: GRID_COLOR, drawBorder: false },
+          border: { display: false },
+          ticks: {
+            font: { family: "'JetBrains Mono', monospace", size: 11 },
+            color: '#60695c',
+            callback: function(value) {
+              return '$' + value.toLocaleString('en-AU');
+            },
+            padding: 8,
+          },
+          beginAtZero: false,
+        }
+      }
+    }
+  });
+})();
+</script>
+
+{% else %}
+
+<!-- No data state -->
+<div class="bg-surface rounded-card shadow-card border border-outline/20 p-12 text-center">
+  <div class="text-neutral mb-2">
+    <svg class="w-12 h-12 mx-auto mb-4 text-neutral/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+    </svg>
+  </div>
+  <h3 class="font-heading text-h3 text-text mb-2">No trend data available</h3>
+  <p class="text-caption text-neutral">
+    Upload historical CSV files to <code class="text-xs bg-muted px-1.5 py-0.5 rounded">data/historical/</code>
+    and run the migration script, or import snapshots via the CSV upload page.
+  </p>
+</div>
+
+{% endif %}

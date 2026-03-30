@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Tracking Matrix — New Light Budget Tool{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Page header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="font-heading text-h1">Tracking Matrix</h1>
+      <p class="text-caption text-neutral mt-1">Budget categories broken down by tracking option</p>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="bg-surface rounded-card shadow-card border border-outline/20 p-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+
+      <!-- Tracking category selector -->
+      <div>
+        <label for="tracking-category-select" class="block text-caption font-medium text-text mb-1">Tracking Category</label>
+        <select
+          id="tracking-category-select"
+          name="tracking_category_id"
+          class="w-full rounded-btn border border-outline/30 bg-bg px-3 py-2 text-body font-body text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+          hx-get="/reports/tracking-matrix/partial"
+          hx-target="#matrix-container"
+          hx-include="[name='from_date'], [name='to_date']"
+          hx-trigger="change"
+          hx-swap="innerHTML"
+          hx-indicator="#loading-spinner"
+        >
+          <option value="">Select a tracking category...</option>
+          {% for cat in categories %}
+          <option value="{{ cat.category_id }}" {% if cat.category_id == selected_category_id %}selected{% endif %}>
+            {{ cat.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- From date -->
+      <div>
+        <label for="from-date" class="block text-caption font-medium text-text mb-1">From</label>
+        <input
+          type="date"
+          id="from-date"
+          name="from_date"
+          value="{{ from_date }}"
+          class="w-full rounded-btn border border-outline/30 bg-bg px-3 py-2 text-body font-body text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+          hx-get="/reports/tracking-matrix/partial"
+          hx-target="#matrix-container"
+          hx-include="[name='tracking_category_id'], [name='to_date']"
+          hx-trigger="change"
+          hx-swap="innerHTML"
+          hx-indicator="#loading-spinner"
+        >
+      </div>
+
+      <!-- To date -->
+      <div>
+        <label for="to-date" class="block text-caption font-medium text-text mb-1">To</label>
+        <input
+          type="date"
+          id="to-date"
+          name="to_date"
+          value="{{ to_date }}"
+          class="w-full rounded-btn border border-outline/30 bg-bg px-3 py-2 text-body font-body text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+          hx-get="/reports/tracking-matrix/partial"
+          hx-target="#matrix-container"
+          hx-include="[name='tracking_category_id'], [name='from_date']"
+          hx-trigger="change"
+          hx-swap="innerHTML"
+          hx-indicator="#loading-spinner"
+        >
+      </div>
+
+      <!-- Loading spinner -->
+      <div class="flex items-end pb-2">
+        <div id="loading-spinner" class="htmx-indicator">
+          <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Matrix table container (htmx target) -->
+  <div id="matrix-container">
+    {% if matrix %}
+      {% include "partials/tracking_matrix_table.html" %}
+    {% elif not selected_category_id %}
+      <!-- Empty state: no category selected -->
+      <div class="bg-surface rounded-card shadow-card border border-outline/20 p-12 text-center">
+        <svg class="mx-auto h-12 w-12 text-neutral/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M3 14h18M9 4v16M15 4v16"/>
+        </svg>
+        <h3 class="font-heading text-h3 mt-4">Select a Tracking Category</h3>
+        <p class="text-caption text-neutral mt-2">
+          Choose a tracking category above to see the budget breakdown matrix.
+        </p>
+      </div>
+    {% elif categories|length == 0 %}
+      <!-- Empty state: no categories available -->
+      <div class="bg-surface rounded-card shadow-card border border-outline/20 p-12 text-center">
+        <svg class="mx-auto h-12 w-12 text-warning/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+        </svg>
+        <h3 class="font-heading text-h3 mt-4">No Tracking Categories Found</h3>
+        <p class="text-caption text-neutral mt-2">
+          Connect to Xero to discover tracking categories, or ensure a tracking categories snapshot exists.
+        </p>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

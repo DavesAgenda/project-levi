@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+{% from "components/kpi_card.html" import kpi_card %}
+{% from "components/chart_card.html" import chart_card %}
+
+{% block title %}Budget Comparison {{ data.target_year }} — New Light Budget{% endblock %}
+
+{% block head %}
+<style>
+  @media print {
+    nav, footer, .no-print { display: none !important; }
+    body { font-size: 10pt; }
+    main { max-width: 100% !important; padding: 0 !important; }
+    .report-table { font-size: 9pt; }
+    @page { margin: 1.5cm; size: landscape; }
+  }
+
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+  }
+  .report-table th {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--neutral);
+    padding: 8px 10px;
+    text-align: right;
+    white-space: nowrap;
+    border-bottom: 2px solid var(--muted);
+  }
+  .report-table th:first-child { text-align: left; }
+  .report-table td {
+    padding: 6px 10px;
+    text-align: right;
+    border-bottom: 1px solid var(--muted);
+    white-space: nowrap;
+  }
+  .report-table td:first-child {
+    text-align: left;
+    font-family: var(--font-body);
+    font-weight: 500;
+  }
+  .report-table .section-header td {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--text);
+    padding-top: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary);
+    background: transparent;
+  }
+  .report-table .summary-row td {
+    font-weight: 700;
+    border-top: 2px solid var(--text);
+    border-bottom: 2px solid var(--text);
+  }
+  .report-table .net-row td {
+    font-weight: 800;
+    font-size: 0.875rem;
+    border-top: 3px double var(--text);
+    border-bottom: 3px double var(--text);
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  .text-var-positive { color: var(--success); }
+  .text-var-negative { color: var(--danger); }
+  .text-var-neutral { color: var(--neutral); }
+  .row-significant { background-color: rgba(255, 115, 0, 0.08); }
+</style>
+{% endblock %}
+
+{% macro fmt(val) %}{{ "${:,.0f}".format(val) }}{% endmacro %}
+
+{% macro var_class(status) %}{% if status == "positive" %}text-var-positive{% elif status == "negative" %}text-var-negative{% else %}text-var-neutral{% endif %}{% endmacro %}
+
+{% block content %}
+<main class="max-w-7xl mx-auto px-4 py-8">
+
+  <!-- Page header -->
+  <div class="mb-8">
+    <h1 class="text-h1 font-heading">Budget Comparison — {{ data.target_year }}</h1>
+    <p class="text-caption mt-2">
+      Draft {{ data.target_year }} budget vs {{ data.current_year }} actuals &amp; budget vs {{ data.prior_year }} actuals
+    </p>
+  </div>
+
+  {% if not data.has_data %}
+  <div class="bg-surface border border-muted rounded-card shadow-card p-8 text-center">
+    <p class="text-caption">No budget data available for {{ data.target_year }}. Create a draft budget first.</p>
+  </div>
+  {% else %}
+
+  <!-- Summary cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div>
+      <h3 class="text-caption font-semibold uppercase mb-3">Draft {{ data.target_year }}</h3>
+      <div class="space-y-3">
+        {{ kpi_card(label="Income", value=fmt(data.draft_summary.total_income), accent="--success") }}
+        {{ kpi_card(label="Expenses", value=fmt(data.draft_summary.total_expenses), accent="--danger") }}
+        {{ kpi_card(
+            label="Net Position",
+            value=fmt(data.draft_summary.net_position),
+            accent="--primary",
+            color_class="text-var-positive" if data.draft_summary.net_position >= 0 else "text-var-negative"
+        ) }}
+      </div>
+    </div>
+    <div>
+      <h3 class="text-caption font-semibold uppercase mb-3">{{ data.current_year }} Actuals</h3>
+      <div class="space-y-3">
+        {{ kpi_card(label="Income", value=fmt(data.current_summary.total_income), accent="--success") }}
+        {{ kpi_card(label="Expenses", value=fmt(data.current_summary.total_expenses), accent="--danger") }}
+        {{ kpi_card(
+            label="Net Position",
+            value=fmt(data.current_summary.net_position),
+            accent="--secondary",
+            color_class="text-var-positive" if data.current_summary.net_position >= 0 else "text-var-negative"
+        ) }}
+      </div>
+    </div>
+    <div>
+      <h3 class="text-caption font-semibold uppercase mb-3">{{ data.prior_year }} Actuals</h3>
+      <div class="space-y-3">
+        {{ kpi_card(label="Income", value=fmt(data.prior_summary.total_income), accent="--success") }}
+        {{ kpi_card(label="Expenses", value=fmt(data.prior_summary.total_expenses), accent="--danger") }}
+        {{ kpi_card(
+            label="Net Position",
+            value=fmt(data.prior_summary.net_position),
+            accent="--neutral",
+            color_class="text-var-positive" if data.prior_summary.net_position >= 0 else "text-var-negative"
+        ) }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="mb-8">
+    {{ chart_card(title="Budget Comparison — Grouped Bar", canvas_id="comparisonChart", height="350px") }}
+  </div>
+
+  <!-- Comparison table -->
+  <div class="bg-surface border border-muted rounded-card shadow-card p-6 overflow-x-auto">
+    <h2 class="text-h2 mb-4">Detailed Comparison</h2>
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Draft {{ data.target_year }}</th>
+          <th>{{ data.current_year }} Actuals</th>
+          <th>{{ data.current_year }} Budget</th>
+          <th>{{ data.prior_year }} Actuals</th>
+          <th>Variance ($)</th>
+          <th>Variance (%)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Income section -->
+        <tr class="section-header">
+          <td colspan="7">Income</td>
+        </tr>
+        {% for row in data.income_rows %}
+        <tr class="{{ 'row-significant' if row.is_significant else '' }}">
+          <td>{{ row.budget_label }}{% if row.is_significant %} <span title="Differs >20% from current actuals" style="color: var(--warning);">&#9888;</span>{% endif %}</td>
+          <td>{{ fmt(row.draft_budget) }}</td>
+          <td>{{ fmt(row.current_actual) }}</td>
+          <td>{{ fmt(row.current_budget) }}</td>
+          <td>{{ fmt(row.prior_actual) }}</td>
+          <td class="{{ var_class(row.variance_status) }}">{{ fmt(row.variance_dollar) }}</td>
+          <td class="{{ var_class(row.variance_status) }}">{{ "{:.1f}%".format(row.variance_pct) if row.variance_pct is not none else "—" }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="summary-row">
+          <td>Total Income</td>
+          <td>{{ fmt(data.draft_summary.total_income) }}</td>
+          <td>{{ fmt(data.current_summary.total_income) }}</td>
+          <td>—</td>
+          <td>{{ fmt(data.prior_summary.total_income) }}</td>
+          <td></td>
+          <td></td>
+        </tr>
+
+        <!-- Expenses section -->
+        <tr class="section-header">
+          <td colspan="7">Expenses</td>
+        </tr>
+        {% for row in data.expense_rows %}
+        <tr class="{{ 'row-significant' if row.is_significant else '' }}">
+          <td>{{ row.budget_label }}{% if row.is_significant %} <span title="Differs >20% from current actuals" style="color: var(--warning);">&#9888;</span>{% endif %}</td>
+          <td>{{ fmt(row.draft_budget) }}</td>
+          <td>{{ fmt(row.current_actual) }}</td>
+          <td>{{ fmt(row.current_budget) }}</td>
+          <td>{{ fmt(row.prior_actual) }}</td>
+          <td class="{{ var_class(row.variance_status) }}">{{ fmt(row.variance_dollar) }}</td>
+          <td class="{{ var_class(row.variance_status) }}">{{ "{:.1f}%".format(row.variance_pct) if row.variance_pct is not none else "—" }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="summary-row">
+          <td>Total Expenses</td>
+          <td>{{ fmt(data.draft_summary.total_expenses) }}</td>
+          <td>{{ fmt(data.current_summary.total_expenses) }}</td>
+          <td>—</td>
+          <td>{{ fmt(data.prior_summary.total_expenses) }}</td>
+          <td></td>
+          <td></td>
+        </tr>
+
+        <!-- Net position -->
+        <tr class="net-row">
+          <td>Net Position</td>
+          <td class="{{ 'text-var-positive' if data.draft_summary.net_position >= 0 else 'text-var-negative' }}">{{ fmt(data.draft_summary.net_position) }}</td>
+          <td class="{{ 'text-var-positive' if data.current_summary.net_position >= 0 else 'text-var-negative' }}">{{ fmt(data.current_summary.net_position) }}</td>
+          <td>—</td>
+          <td class="{{ 'text-var-positive' if data.prior_summary.net_position >= 0 else 'text-var-negative' }}">{{ fmt(data.prior_summary.net_position) }}</td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  {% endif %}
+</main>
+
+{% if data.has_data %}
+<script>
+(function() {
+  const ctx = document.getElementById('comparisonChart').getContext('2d');
+
+  // Combine income + expense labels for chart
+  const labels = [
+    {% for row in data.income_rows %}"{{ row.budget_label }}",{% endfor %}
+    {% for row in data.expense_rows %}"{{ row.budget_label }}",{% endfor %}
+  ];
+
+  const draftData = [
+    {% for row in data.income_rows %}{{ row.draft_budget }},{% endfor %}
+    {% for row in data.expense_rows %}{{ row.draft_budget }},{% endfor %}
+  ];
+
+  const currentData = [
+    {% for row in data.income_rows %}{{ row.current_actual }},{% endfor %}
+    {% for row in data.expense_rows %}{{ row.current_actual }},{% endfor %}
+  ];
+
+  const priorData = [
+    {% for row in data.income_rows %}{{ row.prior_actual }},{% endfor %}
+    {% for row in data.expense_rows %}{{ row.prior_actual }},{% endfor %}
+  ];
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Draft {{ data.target_year }}',
+          data: draftData,
+          backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#ff7300',
+          borderRadius: 4,
+        },
+        {
+          label: '{{ data.current_year }} Actuals',
+          data: currentData,
+          backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--secondary').trim() || '#4a90d9',
+          borderRadius: 4,
+        },
+        {
+          label: '{{ data.prior_year }} Actuals',
+          data: priorData,
+          backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--neutral').trim() || '#9ca3af',
+          borderRadius: 4,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            maxRotation: 45,
+            minRotation: 0,
+            font: { size: 11 },
+          }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return '$' + value.toLocaleString();
+            }
+          }
+        }
+      }
+    }
+  });
+})();
+</script>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+
+{% block title %}Property Portfolio — New Light Budget{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-h1">Property Portfolio</h1>
+      {% if data.has_data %}
+      <p class="text-caption mt-1" style="opacity: 0.7;">
+        Period: {{ data.snapshot_period }}
+      </p>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not data.has_data %}
+  {# -- Empty state -- #}
+  <div class="bg-surface border border-muted rounded-card shadow-card p-12 text-center">
+    <div class="max-w-md mx-auto">
+      <svg class="w-16 h-16 mx-auto mb-4" style="color: var(--neutral);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+      </svg>
+      <h2 class="text-h2 mb-2">No property data available</h2>
+      <p class="text-body mb-6" style="opacity: 0.7;">
+        Import a Xero P&amp;L CSV export or connect your Xero account to see property income,
+        costs, and net yield analysis.
+      </p>
+      <a href="/api/csv/upload"
+         class="inline-flex items-center bg-primary text-white font-semibold rounded-btn min-h-btn px-6 py-2 hover:bg-primary-hover transition-colors">
+        Import CSV Data
+      </a>
+    </div>
+  </div>
+
+  {% else %}
+
+  {# -- Portfolio Summary KPIs -- #}
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div class="bg-surface border border-muted rounded-card shadow-card p-5">
+      <p class="text-caption mb-1" style="opacity: 0.7;">Total Gross Rent</p>
+      <p class="text-figure-lg">${{ "{:,.0f}".format(data.total_gross_rent) }}</p>
+    </div>
+    <div class="bg-surface border border-muted rounded-card shadow-card p-5">
+      <p class="text-caption mb-1" style="opacity: 0.7;">Total Costs</p>
+      <p class="text-figure-lg">${{ "{:,.0f}".format(data.total_management_fees + data.total_maintenance_costs + data.total_levy_share) }}</p>
+    </div>
+    <div class="bg-surface border border-muted rounded-card shadow-card p-5">
+      <p class="text-caption mb-1" style="opacity: 0.7;">Net Income</p>
+      <p class="text-figure-lg {{ 'text-success' if data.total_net_income >= 0 else 'text-danger' }}">
+        ${{ "{:,.0f}".format(data.total_net_income) }}
+      </p>
+    </div>
+    <div class="bg-surface border border-muted rounded-card shadow-card p-5">
+      <p class="text-caption mb-1" style="opacity: 0.7;">Total Assets</p>
+      <p class="text-figure-lg">${{ "{:,.0f}".format(data.total_asset_value) }}</p>
+    </div>
+    <div class="bg-surface border border-muted rounded-card shadow-card p-5">
+      <p class="text-caption mb-1" style="opacity: 0.7;">Portfolio Yield</p>
+      <p class="text-figure-lg">
+        {% if data.portfolio_yield_pct is not none %}
+          {{ data.portfolio_yield_pct }}%
+        {% else %}
+          N/A
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  {# -- Charts -- #}
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    {# Stacked bar: income vs costs per property #}
+    <div class="bg-surface border border-muted rounded-card shadow-card overflow-hidden">
+      <div class="p-6 border-b border-muted">
+        <h2 class="text-h3">Income vs Costs by Property</h2>
+      </div>
+      <div class="p-6" style="height: 350px;">
+        <canvas id="incomeCostsChart"></canvas>
+      </div>
+    </div>
+
+    {# Horizontal bar: yield comparison #}
+    <div class="bg-surface border border-muted rounded-card shadow-card overflow-hidden">
+      <div class="p-6 border-b border-muted">
+        <h2 class="text-h3">Net Yield Comparison</h2>
+      </div>
+      <div class="p-6" style="height: 350px;">
+        <canvas id="yieldChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  {# Budget vs Actual chart #}
+  <div class="bg-surface border border-muted rounded-card shadow-card overflow-hidden">
+    <div class="p-6 border-b border-muted">
+      <h2 class="text-h3">Budget vs Actual Rent</h2>
+    </div>
+    <div class="p-6" style="height: 300px;">
+      <canvas id="budgetActualChart"></canvas>
+    </div>
+  </div>
+
+  {# -- Property Cards -- #}
+  <div class="space-y-6">
+    <h2 class="text-h2">Per-Property Detail</h2>
+
+    {% for prop in data.properties %}
+    <div class="bg-surface border border-muted rounded-card shadow-card overflow-hidden">
+      <div class="p-6 border-b border-muted flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h3 class="text-h3">{{ prop.address }}</h3>
+          <p class="text-caption mt-1" style="opacity: 0.7;">
+            Tenant: {{ prop.tenant }}
+            {% if prop.is_warden_occupied %}
+              <span class="inline-block ml-2 px-2 py-0.5 text-xs font-semibold rounded-badge bg-warning" style="color: var(--text);">Warden Occupied</span>
+            {% endif %}
+          </p>
+        </div>
+        {% if prop.net_yield_pct is not none %}
+        <div class="text-right">
+          <span class="text-figure-lg {{ 'text-success' if prop.yield_status == 'success' else ('text-warning' if prop.yield_status == 'warning' else 'text-danger') }}">
+            {{ prop.net_yield_pct }}%
+          </span>
+          <p class="text-caption" style="opacity: 0.7;">Net Yield</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="p-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
+          <div>
+            <p class="text-caption" style="opacity: 0.7;">Gross Rent</p>
+            <p class="text-figure">${{ "{:,.0f}".format(prop.gross_rent) }}</p>
+          </div>
+          <div>
+            <p class="text-caption" style="opacity: 0.7;">Mgmt Fee</p>
+            <p class="text-figure">${{ "{:,.0f}".format(prop.management_fee) }}</p>
+          </div>
+          <div>
+            <p class="text-caption" style="opacity: 0.7;">Maintenance</p>
+            <p class="text-figure">${{ "{:,.0f}".format(prop.maintenance_costs) }}</p>
+          </div>
+          <div>
+            <p class="text-caption" style="opacity: 0.7;">Levy Share</p>
+            <p class="text-figure">${{ "{:,.0f}".format(prop.levy_share) }}</p>
+          </div>
+          <div>
+            <p class="text-caption" style="opacity: 0.7;">Net Income</p>
+            <p class="text-figure {{ 'text-success' if prop.net_income >= 0 else 'text-danger' }}">
+              ${{ "{:,.0f}".format(prop.net_income) }}
+            </p>
+          </div>
+          {% if prop.avg_maintenance_3yr is not none %}
+          <div>
+            <p class="text-caption" style="opacity: 0.7;">3yr Avg Maint</p>
+            <p class="text-figure">${{ "{:,.0f}".format(prop.avg_maintenance_3yr) }}</p>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if not prop.is_warden_occupied %}
+        {# Budget vs Actual row #}
+        <div class="border-t border-muted pt-4 mt-4">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <p class="text-caption" style="opacity: 0.7;">Budget (Gross)</p>
+              <p class="text-figure">${{ "{:,.0f}".format(prop.budget_gross_rent) }}</p>
+            </div>
+            <div>
+              <p class="text-caption" style="opacity: 0.7;">Actual (Gross)</p>
+              <p class="text-figure">${{ "{:,.0f}".format(prop.gross_rent) }}</p>
+            </div>
+            <div>
+              <p class="text-caption" style="opacity: 0.7;">Variance</p>
+              <p class="text-figure {{ 'text-success' if prop.budget_variance >= 0 else 'text-danger' }}">
+                {{ "{:+,.0f}".format(prop.budget_variance) | replace("+", "+$") | replace("-", "-$") }}
+              </p>
+            </div>
+            <div>
+              <p class="text-caption" style="opacity: 0.7;">Variance %</p>
+              <p class="text-figure {{ 'text-success' if prop.budget_status == 'success' else ('text-warning' if prop.budget_status == 'warning' else '') }}">
+                {% if prop.budget_variance_pct is not none %}
+                  {{ "{:+.1f}".format(prop.budget_variance_pct) }}%
+                {% else %}
+                  N/A
+                {% endif %}
+              </p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {# Asset values #}
+        {% if prop.total_asset_value > 0 %}
+        <div class="border-t border-muted pt-4 mt-4">
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+              <p class="text-caption" style="opacity: 0.7;">Land Value</p>
+              <p class="text-figure">${{ "{:,.0f}".format(prop.land_value) }}</p>
+            </div>
+            <div>
+              <p class="text-caption" style="opacity: 0.7;">Building Value</p>
+              <p class="text-figure">${{ "{:,.0f}".format(prop.building_value) }}</p>
+            </div>
+            <div>
+              <p class="text-caption" style="opacity: 0.7;">Total Asset Value</p>
+              <p class="text-figure">${{ "{:,.0f}".format(prop.total_asset_value) }}</p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# -- Portfolio Summary Table -- #}
+  <div class="bg-surface border border-muted rounded-card shadow-card overflow-hidden">
+    <div class="p-6 border-b border-muted">
+      <h2 class="text-h2">Portfolio Summary</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left">
+        <thead>
+          <tr class="border-b border-muted">
+            <th class="px-6 py-3 text-caption font-semibold">Property</th>
+            <th class="px-6 py-3 text-caption font-semibold text-right">Gross Rent</th>
+            <th class="px-6 py-3 text-caption font-semibold text-right">Costs</th>
+            <th class="px-6 py-3 text-caption font-semibold text-right">Net Income</th>
+            <th class="px-6 py-3 text-caption font-semibold text-right">Asset Value</th>
+            <th class="px-6 py-3 text-caption font-semibold text-right">Net Yield</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for prop in data.properties %}
+          <tr class="border-b border-muted hover:bg-muted/30 transition-colors">
+            <td class="px-6 py-3 font-medium">
+              {{ prop.address }}
+              {% if prop.is_warden_occupied %}
+                <span class="text-xs ml-1" style="color: var(--neutral);">(warden)</span>
+              {% endif %}
+            </td>
+            <td class="px-6 py-3 text-right font-mono">${{ "{:,.0f}".format(prop.gross_rent) }}</td>
+            <td class="px-6 py-3 text-right font-mono">${{ "{:,.0f}".format(prop.management_fee + prop.maintenance_costs + prop.levy_share) }}</td>
+            <td class="px-6 py-3 text-right font-mono {{ 'text-success' if prop.net_income >= 0 else 'text-danger' }}">
+              ${{ "{:,.0f}".format(prop.net_income) }}
+            </td>
+            <td class="px-6 py-3 text-right font-mono">${{ "{:,.0f}".format(prop.total_asset_value) }}</td>
+            <td class="px-6 py-3 text-right font-mono">
+              {% if prop.net_yield_pct is not none %}
+                <span class="{{ 'text-success' if prop.yield_status == 'success' else ('text-warning' if prop.yield_status == 'warning' else 'text-danger') }}">
+                  {{ prop.net_yield_pct }}%
+                </span>
+              {% else %}
+                <span style="color: var(--neutral);">N/A</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="border-t-2 border-primary font-semibold">
+            <td class="px-6 py-3">Portfolio Total</td>
+            <td class="px-6 py-3 text-right font-mono">${{ "{:,.0f}".format(data.total_gross_rent) }}</td>
+            <td class="px-6 py-3 text-right font-mono">${{ "{:,.0f}".format(data.total_management_fees + data.total_maintenance_costs + data.total_levy_share) }}</td>
+            <td class="px-6 py-3 text-right font-mono {{ 'text-success' if data.total_net_income >= 0 else 'text-danger' }}">
+              ${{ "{:,.0f}".format(data.total_net_income) }}
+            </td>
+            <td class="px-6 py-3 text-right font-mono">${{ "{:,.0f}".format(data.total_asset_value) }}</td>
+            <td class="px-6 py-3 text-right font-mono">
+              {% if data.portfolio_yield_pct is not none %}
+                {{ data.portfolio_yield_pct }}%
+              {% else %}
+                N/A
+              {% endif %}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if data.has_data %}
+<script>
+// -- Design-token-aware Chart.js setup --
+function getToken(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+const chartColors = {
+  primary: getToken('--primary'),
+  accent: getToken('--accent'),
+  success: getToken('--success'),
+  danger: getToken('--danger'),
+  warning: getToken('--warning'),
+  muted: getToken('--muted'),
+  text: getToken('--text'),
+  surface: getToken('--surface'),
+};
+
+Chart.defaults.color = chartColors.text;
+Chart.defaults.borderColor = chartColors.muted;
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+const chartTooltip = {
+  backgroundColor: chartColors.text,
+  titleColor: chartColors.surface,
+  bodyColor: chartColors.surface,
+  cornerRadius: 4,
+};
+
+// -- Stacked Bar: Income vs Costs per Property --
+const allLabels = {{ data.properties | map(attribute='address') | list | tojson }};
+const grossRents = {{ data.properties | map(attribute='gross_rent') | list | tojson }};
+const mgmtFees = {{ data.properties | map(attribute='management_fee') | list | tojson }};
+const maintCosts = {{ data.properties | map(attribute='maintenance_costs') | list | tojson }};
+const levyShares = {{ data.properties | map(attribute='levy_share') | list | tojson }};
+
+new Chart(document.getElementById('incomeCostsChart'), {
+  type: 'bar',
+  data: {
+    labels: allLabels,
+    datasets: [
+      {
+        label: 'Gross Rent',
+        data: grossRents,
+        backgroundColor: hexToRgba(chartColors.success, 0.7),
+        borderColor: chartColors.success,
+        borderWidth: 1,
+        stack: 'income',
+      },
+      {
+        label: 'Management Fee',
+        data: mgmtFees,
+        backgroundColor: hexToRgba(chartColors.primary, 0.7),
+        borderColor: chartColors.primary,
+        borderWidth: 1,
+        stack: 'costs',
+      },
+      {
+        label: 'Maintenance',
+        data: maintCosts,
+        backgroundColor: hexToRgba(chartColors.warning, 0.7),
+        borderColor: chartColors.warning,
+        borderWidth: 1,
+        stack: 'costs',
+      },
+      {
+        label: 'Levy Share',
+        data: levyShares,
+        backgroundColor: hexToRgba(chartColors.danger, 0.5),
+        borderColor: chartColors.danger,
+        borderWidth: 1,
+        stack: 'costs',
+      },
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top' },
+      tooltip: {
+        ...chartTooltip,
+        callbacks: {
+          label: ctx => ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString()
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { font: { size: 11 }, maxRotation: 45 },
+        grid: { display: false },
+      },
+      y: {
+        stacked: true,
+        ticks: {
+          font: { size: 11 },
+          callback: v => '$' + v.toLocaleString()
+        },
+        grid: { color: chartColors.muted },
+      }
+    }
+  }
+});
+
+// -- Horizontal Bar: Net Yield Comparison --
+{% set income_props = data.properties | selectattr('net_yield_pct') | list %}
+const yieldLabels = {{ income_props | map(attribute='address') | list | tojson }};
+const yieldData = {{ income_props | map(attribute='net_yield_pct') | list | tojson }};
+
+const yieldBarColors = yieldData.map(v => {
+  if (v >= 4) return hexToRgba(chartColors.success, 0.7);
+  if (v >= 2) return hexToRgba(chartColors.warning, 0.7);
+  return hexToRgba(chartColors.danger, 0.7);
+});
+const yieldBorderColors = yieldData.map(v => {
+  if (v >= 4) return chartColors.success;
+  if (v >= 2) return chartColors.warning;
+  return chartColors.danger;
+});
+
+new Chart(document.getElementById('yieldChart'), {
+  type: 'bar',
+  data: {
+    labels: yieldLabels,
+    datasets: [{
+      label: 'Net Yield %',
+      data: yieldData,
+      backgroundColor: yieldBarColors,
+      borderColor: yieldBorderColors,
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        ...chartTooltip,
+        callbacks: {
+          label: ctx => 'Net Yield: ' + ctx.parsed.x.toFixed(2) + '%'
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: {
+          font: { size: 11 },
+          callback: v => v + '%'
+        },
+        grid: { color: chartColors.muted },
+      },
+      y: {
+        ticks: { font: { size: 11 } },
+        grid: { display: false },
+      }
+    }
+  }
+});
+
+// -- Budget vs Actual Rent --
+{% set budget_props = data.properties | rejectattr('is_warden_occupied') | list %}
+const budgetLabels = {{ budget_props | map(attribute='address') | list | tojson }};
+const budgetAmounts = {{ budget_props | map(attribute='budget_gross_rent') | list | tojson }};
+const actualAmounts = {{ budget_props | map(attribute='gross_rent') | list | tojson }};
+
+new Chart(document.getElementById('budgetActualChart'), {
+  type: 'bar',
+  data: {
+    labels: budgetLabels,
+    datasets: [
+      {
+        label: 'Budget',
+        data: budgetAmounts,
+        backgroundColor: hexToRgba(chartColors.primary, 0.6),
+        borderColor: chartColors.primary,
+        borderWidth: 1,
+      },
+      {
+        label: 'Actual',
+        data: actualAmounts,
+        backgroundColor: hexToRgba(chartColors.accent, 0.6),
+        borderColor: chartColors.accent,
+        borderWidth: 1,
+      },
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top' },
+      tooltip: {
+        ...chartTooltip,
+        callbacks: {
+          label: ctx => ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString()
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { font: { size: 11 }, maxRotation: 45 },
+        grid: { display: false },
+      },
+      y: {
+        ticks: {
+          font: { size: 11 },
+          callback: v => '$' + v.toLocaleString()
+        },
+        grid: { color: chartColors.muted },
+      }
+    }
+  }
+});
+</script>
+{% endif %}
+{% endblock %}

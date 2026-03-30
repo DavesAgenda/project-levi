@@ -1,0 +1,44 @@
+# Version control
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.venv
+.pytest_cache
+*.egg-info
+
+# Environment and secrets
+.env
+.env.*
+*.secret
+.xero_tokens.json
+secrets/
+
+# IDE and editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Project meta (not needed in image)
+.claude/
+00_context/
+research/
+scripts/
+docs/
+*.md
+
+# Node (if Tailwind build is local)
+node_modules/
+
+# Reports and data (mounted at runtime)
+data/
+reports/
+
+# Docker
+Dockerfile
+docker-compose.yml
+docker-compose.*.yml

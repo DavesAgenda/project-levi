@@ -1,7 +1,19 @@
 .env
+.env.*
 *.secret
+.xero_tokens.json
+secrets/
 __pycache__/
 *.pyc
 .venv/
 node_modules/
 reports/*.pdf
+.pytest_cache/
+
+# Historical data — keep templates, ignore actual financial CSVs
+data/historical/*.csv
+!data/historical/template.csv
+!data/historical/sample_*.csv
+
+# Snapshot data — generated, not committed (except pinned AGM snapshots)
+data/snapshots/*.json

@@ -1,0 +1,154 @@
+{% from "components/chart_card.html" import chart_card %}
+
+{# Property What-If Scenarios — htmx partial #}
+<div id="property-scenarios-panel">
+  <form hx-post="/budget/scenarios/property/{{ year }}/preview"
+        hx-target="#property-scenarios-panel"
+        hx-swap="outerHTML"
+        hx-trigger="change delay:300ms">
+
+    {# --- Scenario Controls Per Property --- #}
+    <div class="grid gap-4 mb-6">
+      {% for key, prop in properties.items() %}
+      <div class="bg-surface border border-muted rounded-card shadow-card p-4">
+        <h3 class="text-h4 mb-2">{{ prop.get("address", key) }}</h3>
+        <p class="text-caption text-neutral mb-3">
+          Base: ${{ "{:,.0f}".format(prop.get("weekly_rate", 0)) }}/wk
+          &times; {{ prop.get("weeks_per_year", 48) }} wks
+          {% if prop.get("management_fee_pct", 0) %}
+            &minus; {{ "{:.1%}".format(prop.get("management_fee_pct", 0)) }} mgmt fee
+          {% endif %}
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {# Vacancy weeks #}
+          <label class="block">
+            <span class="text-caption text-text-body">Weeks vacant</span>
+            <input type="number" name="{{ key }}_vacancy" min="0" max="52"
+                   value="{{ scenarios.get(key, {}).vacancy_weeks if scenarios.get(key) else 0 }}"
+                   class="mt-1 w-full font-mono text-figure bg-bg border border-muted rounded px-2 py-1 focus:border-primary focus:outline-none">
+          </label>
+
+          {# Rent override #}
+          <label class="block">
+            <span class="text-caption text-text-body">Weekly rate override ($)</span>
+            <input type="text" name="{{ key }}_rate"
+                   value="{{ '{:,.0f}'.format(scenarios.get(key).weekly_rate) if scenarios.get(key) and scenarios.get(key).weekly_rate is not none else '' }}"
+                   placeholder="{{ '{:,.0f}'.format(prop.get('weekly_rate', 0)) }}"
+                   class="mt-1 w-full font-mono text-figure bg-bg border border-muted rounded px-2 py-1 focus:border-primary focus:outline-none">
+          </label>
+
+          {# Major repair #}
+          <label class="block">
+            <span class="text-caption text-text-body">Major repair cost ($)</span>
+            <input type="text" name="{{ key }}_repair"
+                   value="{{ '{:,.0f}'.format(scenarios.get(key).major_repair) if scenarios.get(key) and scenarios.get(key).major_repair else '' }}"
+                   placeholder="0"
+                   class="mt-1 w-full font-mono text-figure bg-bg border border-muted rounded px-2 py-1 focus:border-primary focus:outline-none">
+          </label>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# --- Impact Preview Table --- #}
+    <div class="bg-surface border border-muted rounded-card shadow-card p-6 mb-6">
+      <h2 class="text-h3 mb-4">Impact Preview</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-text-body">
+          <thead>
+            <tr class="border-b-2 border-muted text-left">
+              <th class="py-2">Property</th>
+              <th class="py-2 text-right">Base Net</th>
+              <th class="py-2 text-right">Scenario Net</th>
+              <th class="py-2 text-right">Delta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pr in summary.properties %}
+            <tr class="border-b border-muted/50 hover:bg-muted/20">
+              <td class="py-2">{{ pr.address }}</td>
+              <td class="py-2 text-right font-mono text-figure">${{ "{:,.0f}".format(pr.base_annual_net) }}</td>
+              <td class="py-2 text-right font-mono text-figure">${{ "{:,.0f}".format(pr.scenario_annual_net) }}</td>
+              <td class="py-2 text-right font-mono text-figure {{ 'text-danger' if pr.delta < 0 else 'text-success' if pr.delta > 0 else '' }}">
+                {{ "{:+,.0f}".format(pr.delta) }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="border-t-2 border-muted font-semibold">
+              <td class="py-2">Total</td>
+              <td class="py-2 text-right font-mono text-figure">${{ "{:,.0f}".format(summary.base_total) }}</td>
+              <td class="py-2 text-right font-mono text-figure">${{ "{:,.0f}".format(summary.scenario_total) }}</td>
+              <td class="py-2 text-right font-mono text-figure {{ 'text-danger' if summary.delta_total < 0 else 'text-success' if summary.delta_total > 0 else '' }}">
+                {{ "{:+,.0f}".format(summary.delta_total) }}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+  </form>
+
+  {# --- Base vs Scenario Chart --- #}
+  {{ chart_card(title="Base vs Scenario Comparison", canvas_id="scenarioChart") }}
+
+  <script>
+  (function() {
+    const ctx = document.getElementById('scenarioChart');
+    if (!ctx) return;
+    const labels = [{% for pr in summary.properties %}"{{ pr.address }}"{{ "," if not loop.last }}{% endfor %}];
+    const baseData = [{% for pr in summary.properties %}{{ pr.base_annual_net }}{{ "," if not loop.last }}{% endfor %}];
+    const scenarioData = [{% for pr in summary.properties %}{{ pr.scenario_annual_net }}{{ "," if not loop.last }}{% endfor %}];
+
+    // Destroy existing chart if re-rendered via htmx
+    if (window._scenarioChart) { window._scenarioChart.destroy(); }
+
+    window._scenarioChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Base Net Income',
+            data: baseData,
+            backgroundColor: 'rgba(107, 114, 128, 0.6)',
+            borderColor: 'rgb(107, 114, 128)',
+            borderWidth: 1
+          },
+          {
+            label: 'Scenario Net Income',
+            data: scenarioData,
+            backgroundColor: 'rgba(255, 115, 0, 0.6)',
+            borderColor: 'rgb(255, 115, 0)',
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                return ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString();
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(v) { return '$' + v.toLocaleString(); }
+            }
+          }
+        }
+      }
+    });
+  })();
+  </script>
+</div>

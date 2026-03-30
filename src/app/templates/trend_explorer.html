@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Trend Explorer — New Light Budget Tool{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Page header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="font-heading text-h1">Trend Explorer</h1>
+      <p class="text-caption text-neutral mt-1">Multi-year analysis by budget category</p>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="bg-surface rounded-card shadow-card border border-outline/20 p-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+
+      <!-- Primary category selector -->
+      <div>
+        <label for="category-select" class="block text-caption font-medium text-text mb-1">Category</label>
+        <select
+          id="category-select"
+          name="category"
+          class="w-full rounded-btn border border-outline/30 bg-bg px-3 py-2 text-body font-body text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+          hx-get="/reports/trends/chart"
+          hx-target="#trend-chart-container"
+          hx-include="[name='compare'], [name='granularity']"
+          hx-trigger="change"
+          hx-swap="innerHTML"
+        >
+          <optgroup label="Income">
+            {% for cat in categories if cat.section == 'income' %}
+            <option value="{{ cat.key }}" {% if cat.key == selected_key %}selected{% endif %}>
+              {{ cat.label }}
+            </option>
+            {% endfor %}
+          </optgroup>
+          <optgroup label="Expenses">
+            {% for cat in categories if cat.section == 'expenses' %}
+            <option value="{{ cat.key }}" {% if cat.key == selected_key %}selected{% endif %}>
+              {{ cat.label }}
+            </option>
+            {% endfor %}
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Compare category selector -->
+      <div>
+        <label for="compare-select" class="block text-caption font-medium text-text mb-1">Compare with</label>
+        <select
+          id="compare-select"
+          name="compare"
+          class="w-full rounded-btn border border-outline/30 bg-bg px-3 py-2 text-body font-body text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+          hx-get="/reports/trends/chart"
+          hx-target="#trend-chart-container"
+          hx-include="[name='category'], [name='granularity']"
+          hx-trigger="change"
+          hx-swap="innerHTML"
+        >
+          <option value="">None</option>
+          <optgroup label="Income">
+            {% for cat in categories if cat.section == 'income' %}
+            <option value="{{ cat.key }}" {% if cat.key == compare_key %}selected{% endif %}>
+              {{ cat.label }}
+            </option>
+            {% endfor %}
+          </optgroup>
+          <optgroup label="Expenses">
+            {% for cat in categories if cat.section == 'expenses' %}
+            <option value="{{ cat.key }}" {% if cat.key == compare_key %}selected{% endif %}>
+              {{ cat.label }}
+            </option>
+            {% endfor %}
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Granularity toggle -->
+      <div>
+        <label for="granularity-select" class="block text-caption font-medium text-text mb-1">Granularity</label>
+        <select
+          id="granularity-select"
+          name="granularity"
+          class="w-full rounded-btn border border-outline/30 bg-bg px-3 py-2 text-body font-body text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+          hx-get="/reports/trends/chart"
+          hx-target="#trend-chart-container"
+          hx-include="[name='category'], [name='compare']"
+          hx-trigger="change"
+          hx-swap="innerHTML"
+        >
+          <option value="yearly" {% if granularity == 'yearly' %}selected{% endif %}>Annual</option>
+          <option value="monthly" {% if granularity == 'monthly' %}selected{% endif %}>Monthly</option>
+        </select>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Chart + table container (htmx target) -->
+  <div id="trend-chart-container">
+    {% include "partials/trend_chart.html" %}
+  </div>
+
+</div>
+{% endblock %}

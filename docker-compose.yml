@@ -1,0 +1,36 @@
+services:
+  budget-app:
+    build: .
+    image: ghcr.io/valid-agenda/church-budget:latest
+    container_name: church-budget
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"    # Localhost only — Caddy handles TLS/proxy
+    volumes:
+      - ./data:/project/data       # Persistent data (actuals, snapshots)
+    environment:
+      - XERO_CLIENT_ID_FILE=/run/secrets/xero_client_id
+      - XERO_CLIENT_SECRET_FILE=/run/secrets/xero_client_secret
+    secrets:
+      - xero_client_id
+      - xero_client_secret
+    networks:
+      - church-net
+    mem_limit: 512m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  church-net:
+    external: true    # Shared with n8n for inter-service communication
+
+secrets:
+  xero_client_id:
+    file: ./secrets/xero_client_id.txt
+  xero_client_secret:
+    file: ./secrets/xero_client_secret.txt

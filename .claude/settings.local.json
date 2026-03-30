@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/tinmu/dev/project_levi -type f -name *agent*)",
+      "WebSearch",
+      "WebFetch(domain:developers.hostinger.com)",
+      "Bash(find /c/Users/tinmu -type f \\\\\\(-name *.md -o -name *.json -o -name *.yaml -o -name *.yml \\\\\\))",
+      "Bash(find /c/Users/tinmu/dev -type f \\\\\\(-name *.md -o -name *.json \\\\\\))",
+      "Bash(xargs grep:*)",
+      "Bash(find /c/Users/tinmu -type f -name *jimmy* -o -name *clark* -o -name *tony*)",
+      "Bash(find /c/Users/tinmu/OneDrive -type d -name *agent*)",
+      "Bash(grep -i \"tony\" \"/c/Users/tinmu/OneDrive - Valid Agenda Pty Ltd/Antigravity/Project_Lois/.agent/skills/\"*\"/SKILL.md\")",
+      "mcp__claude_ai_Linear__save_project",
+      "mcp__claude_ai_Linear__create_issue_label",
+      "mcp__claude_ai_Linear__get_milestone"
+    ]
+  }
+}

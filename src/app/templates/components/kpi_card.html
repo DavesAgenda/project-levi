@@ -1,0 +1,38 @@
+{#
+  KPI Card Component
+  ==================
+  A summary metric card with optional subtitle and progress bar.
+
+  Parameters:
+    label       : string  — card heading
+    value       : string  — formatted main value (e.g. "$101,300")
+    subtitle    : string or none — secondary text below value
+    accent      : string — CSS variable name for left border color (default: "--primary")
+    color_class : string or none — Tailwind text color class for the value (e.g. "text-success")
+    progress    : float or none — 0-100 progress bar value (omit to hide bar)
+
+  Usage:
+    {% from "components/kpi_card.html" import kpi_card %}
+    {{ kpi_card(label="Total Income", value="$101,300", subtitle="Budget: $279,500") }}
+    {{ kpi_card(label="Net Position", value="+$25,000", accent="--success", color_class="text-success") }}
+    {{ kpi_card(label="Budget Consumed", value="36.2%", progress=36.2) }}
+#}
+
+{% macro kpi_card(label, value, subtitle=none, accent="--primary", color_class=none, progress=none) %}
+<div class="bg-surface border border-muted rounded-card shadow-card p-6 border-l-4"
+     style="border-left-color: var({{ accent }});">
+  <p class="text-caption font-semibold uppercase mb-2">{{ label }}</p>
+  <p class="font-mono text-figure-lg {{ color_class or '' }}">{{ value }}</p>
+  {% if subtitle %}
+  <p class="text-small mt-1">{{ subtitle }}</p>
+  {% endif %}
+  {% if progress is not none %}
+  <div class="mt-2 w-full rounded-full h-2" style="background: var(--muted);">
+    <div class="h-2 rounded-full transition-all"
+         style="width: {{ [progress, 100] | min }}%;
+                background: var({% if progress <= 75 %}--success{% elif progress <= 90 %}--warning{% else %}--danger{% endif %});">
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}

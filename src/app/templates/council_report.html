@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Council Report — New Light Budget{% endblock %}
+
+{% block head %}
+<style>
+  /* Print-friendly styles */
+  @media print {
+    nav, footer, .no-print, .date-selector { display: none !important; }
+    body { font-size: 10pt; }
+    main { max-width: 100% !important; padding: 0 !important; }
+    .report-table { font-size: 9pt; }
+    .report-table th, .report-table td { padding: 4px 6px !important; }
+    .report-card { box-shadow: none !important; border: 1px solid #ccc !important; }
+    @page { margin: 1.5cm; size: landscape; }
+  }
+
+  /* Report table styles */
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+  }
+  .report-table th {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--neutral);
+    padding: 8px 10px;
+    text-align: right;
+    white-space: nowrap;
+    border-bottom: 2px solid var(--muted);
+  }
+  .report-table th:first-child {
+    text-align: left;
+  }
+  .report-table td {
+    padding: 6px 10px;
+    text-align: right;
+    border-bottom: 1px solid var(--muted);
+    white-space: nowrap;
+  }
+  .report-table td:first-child {
+    text-align: left;
+    font-family: var(--font-body);
+    font-weight: 500;
+  }
+  .report-table .section-header td {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--text);
+    padding-top: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary);
+    background: transparent;
+  }
+  .report-table .summary-row td {
+    font-weight: 700;
+    border-top: 2px solid var(--text);
+    border-bottom: 2px solid var(--text);
+    font-family: var(--font-mono);
+  }
+  .report-table .net-row td {
+    font-weight: 800;
+    font-size: 0.875rem;
+    border-top: 3px double var(--text);
+    border-bottom: 3px double var(--text);
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  .text-var-positive { color: var(--success); }
+  .text-var-negative { color: var(--danger); }
+  .text-var-neutral { color: var(--neutral); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  {# ── Header + Date Selector ── #}
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-h1">Council Report</h1>
+      <p class="text-caption mt-1" style="opacity: 0.7;">
+        {% if data.view_mode == "month" %}
+        {{ data.month_labels[0] }} {{ data.year }} — Actuals vs Monthly Budget
+        {% else %}
+        Monthly actuals vs budget — {{ data.year }} YTD
+        {% endif %}
+        {% if data.has_data %}
+        &middot; Generated {{ data.generated_date }}
+        {% endif %}
+      </p>
+    </div>
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 no-print date-selector">
+      {# View mode toggle #}
+      <div class="flex rounded-btn overflow-hidden border border-outline">
+        <a href="/reports/council?year={{ selected_year }}&month={{ selected_month }}&view=month"
+           class="px-3 py-2 text-caption font-medium transition-colors
+                  {% if selected_view == 'month' %}bg-primary text-white{% else %}bg-surface text-text hover:bg-muted{% endif %}">
+          Current Month
+        </a>
+        <a href="/reports/council?year={{ selected_year }}&month={{ selected_month }}&view=ytd"
+           class="px-3 py-2 text-caption font-medium transition-colors border-l border-outline
+                  {% if selected_view != 'month' %}bg-primary text-white{% else %}bg-surface text-text hover:bg-muted{% endif %}">
+          Year to Date
+        </a>
+      </div>
+      <form method="get" action="/reports/council" class="flex items-center gap-2">
+        <input type="hidden" name="view" value="{{ selected_view }}">
+        <select name="year"
+                class="bg-surface border border-outline rounded-btn px-3 py-2 text-caption font-body focus:border-primary">
+          {% for y in range(current_year - 2, current_year + 1) %}
+          <option value="{{ y }}" {{ 'selected' if y == selected_year }}>{{ y }}</option>
+          {% endfor %}
+        </select>
+        <select name="month"
+                class="bg-surface border border-outline rounded-btn px-3 py-2 text-caption font-body focus:border-primary">
+          {% for m in range(1, 13) %}
+          <option value="{{ m }}" {{ 'selected' if m == selected_month }}>
+            {{ ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1] }}
+          </option>
+          {% endfor %}
+        </select>
+        <button type="submit"
+                class="bg-primary text-white font-semibold rounded-btn min-h-btn px-4 py-2 hover:bg-primary-hover transition-colors text-caption">
+          Update
+        </button>
+      </form>
+      <button onclick="window.print()"
+              class="no-print bg-surface border border-outline text-text font-medium rounded-btn min-h-btn px-4 py-2 hover:border-primary transition-colors text-caption">
+        Print
+      </button>
+    </div>
+  </div>
+
+  {% if not data.has_data %}
+  {# ── Empty state ── #}
+  <div class="bg-surface border border-muted rounded-card shadow-card p-12 text-center">
+    <div class="max-w-md mx-auto">
+      <svg class="w-16 h-16 mx-auto mb-4" style="color: var(--neutral);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      <h2 class="text-h2 mb-2">No data for {{ data.year }}</h2>
+      <p class="text-body mb-6" style="opacity: 0.7;">
+        No financial snapshots found for this period. Import data via CSV or connect Xero to generate the council report.
+      </p>
+      <a href="/"
+         class="inline-flex items-center bg-primary text-white font-semibold rounded-btn min-h-btn px-6 py-2 hover:bg-primary-hover transition-colors">
+        Back to Dashboard
+      </a>
+    </div>
+  </div>
+
+  {% else %}
+  {# ── Report Table ── #}
+  <div class="bg-surface border border-muted rounded-card shadow-card overflow-x-auto report-card">
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th style="min-width: 180px;">Category</th>
+          {% if data.view_mode == "ytd" %}
+          {% for label in data.month_labels %}
+          <th>{{ label }}</th>
+          {% endfor %}
+          {% endif %}
+          <th>{% if data.view_mode == "month" %}Actual{% else %}YTD Actual{% endif %}</th>
+          <th>{% if data.view_mode == "month" %}Budget{% else %}YTD Budget{% endif %}</th>
+          <th>Var ($)</th>
+          <th>Var (%)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {# ── Income Section ── #}
+        <tr class="section-header">
+          <td colspan="{% if data.view_mode == 'ytd' %}{{ data.month_labels|length + 5 }}{% else %}5{% endif %}">Income</td>
+        </tr>
+        {% for row in data.income_rows %}
+        <tr>
+          <td>{{ row.budget_label }}</td>
+          {% if data.view_mode == "ytd" %}
+          {% for mk in data.month_keys %}
+          <td>{{ "${:,.0f}".format(row.monthly_actuals.get(mk, 0)) }}</td>
+          {% endfor %}
+          {% endif %}
+          <td class="font-bold">${{ "{:,.0f}".format(row.ytd_actual) }}</td>
+          <td>${{ "{:,.0f}".format(row.ytd_budget) }}</td>
+          <td class="{% if row.variance_dollar > 0 %}text-var-positive{% elif row.variance_dollar < 0 %}text-var-negative{% else %}text-var-neutral{% endif %}">
+            {{ "{:+,.0f}".format(row.variance_dollar) | replace("+", "+$") | replace("-", "-$") }}
+          </td>
+          <td class="{% if row.variance_pct is not none and row.variance_pct > 0 %}text-var-positive{% elif row.variance_pct is not none and row.variance_pct < 0 %}text-var-negative{% else %}text-var-neutral{% endif %}">
+            {% if row.variance_pct is not none %}{{ "{:+.1f}%".format(row.variance_pct) }}{% else %}&mdash;{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {# Income Summary #}
+        {% if data.income_summary %}
+        <tr class="summary-row">
+          <td>{{ data.income_summary.label }}</td>
+          {% if data.view_mode == "ytd" %}
+          {% for mk in data.month_keys %}
+          <td>{{ "${:,.0f}".format(data.income_summary.monthly_totals.get(mk, 0)) }}</td>
+          {% endfor %}
+          {% endif %}
+          <td>${{ "{:,.0f}".format(data.income_summary.ytd_actual) }}</td>
+          <td>${{ "{:,.0f}".format(data.income_summary.ytd_budget) }}</td>
+          <td class="{% if data.income_summary.variance_dollar > 0 %}text-var-positive{% elif data.income_summary.variance_dollar < 0 %}text-var-negative{% else %}text-var-neutral{% endif %}">
+            {{ "{:+,.0f}".format(data.income_summary.variance_dollar) | replace("+", "+$") | replace("-", "-$") }}
+          </td>
+          <td class="{% if data.income_summary.variance_pct is not none and data.income_summary.variance_pct > 0 %}text-var-positive{% elif data.income_summary.variance_pct is not none and data.income_summary.variance_pct < 0 %}text-var-negative{% else %}text-var-neutral{% endif %}">
+            {% if data.income_summary.variance_pct is not none %}{{ "{:+.1f}%".format(data.income_summary.variance_pct) }}{% else %}&mdash;{% endif %}
+          </td>
+        </tr>
+        {% endif %}
+
+        {# ── Expenses Section ── #}
+        <tr class="section-header">
+          <td colspan="{% if data.view_mode == 'ytd' %}{{ data.month_labels|length + 5 }}{% else %}5{% endif %}">Expenses</td>
+        </tr>
+        {% for row in data.expense_rows %}
+        <tr>
+          <td>{{ row.budget_label }}</td>
+          {% if data.view_mode == "ytd" %}
+          {% for mk in data.month_keys %}
+          <td>{{ "${:,.0f}".format(row.monthly_actuals.get(mk, 0)) }}</td>
+          {% endfor %}
+          {% endif %}
+          <td class="font-bold">${{ "{:,.0f}".format(row.ytd_actual) }}</td>
+          <td>${{ "{:,.0f}".format(row.ytd_budget) }}</td>
+          <td class="{% if row.variance_dollar < 0 %}text-var-positive{% elif row.variance_dollar > 0 %}text-var-negative{% else %}text-var-neutral{% endif %}">
+            {{ "{:+,.0f}".format(row.variance_dollar) | replace("+", "+$") | replace("-", "-$") }}
+          </td>
+          <td class="{% if row.variance_pct is not none and row.variance_pct < 0 %}text-var-positive{% elif row.variance_pct is not none and row.variance_pct > 0 %}text-var-negative{% else %}text-var-neutral{% endif %}">
+            {% if row.variance_pct is not none %}{{ "{:+.1f}%".format(row.variance_pct) }}{% else %}&mdash;{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {# Expenses Summary #}
+        {% if data.expense_summary %}
+        <tr class="summary-row">
+          <td>{{ data.expense_summary.label }}</td>
+          {% if data.view_mode == "ytd" %}
+          {% for mk in data.month_keys %}
+          <td>{{ "${:,.0f}".format(data.expense_summary.monthly_totals.get(mk, 0)) }}</td>
+          {% endfor %}
+          {% endif %}
+          <td>${{ "{:,.0f}".format(data.expense_summary.ytd_actual) }}</td>
+          <td>${{ "{:,.0f}".format(data.expense_summary.ytd_budget) }}</td>
+          <td class="{% if data.expense_summary.variance_dollar < 0 %}text-var-positive{% elif data.expense_summary.variance_dollar > 0 %}text-var-negative{% else %}text-var-neutral{% endif %}">
+            {{ "{:+,.0f}".format(data.expense_summary.variance_dollar) | replace("+", "+$") | replace("-", "-$") }}
+          </td>
+          <td class="{% if data.expense_summary.variance_pct is not none and data.expense_summary.variance_pct < 0 %}text-var-positive{% elif data.expense_summary.variance_pct is not none and data.expense_summary.variance_pct > 0 %}text-var-negative{% else %}text-var-neutral{% endif %}">
+            {% if data.expense_summary.variance_pct is not none %}{{ "{:+.1f}%".format(data.expense_summary.variance_pct) }}{% else %}&mdash;{% endif %}
+          </td>
+        </tr>
+        {% endif %}
+
+        {# ── Net Position ── #}
+        <tr class="net-row">
+          <td>Net Position</td>
+          {% if data.view_mode == "ytd" %}
+          {% for mk in data.month_keys %}
+          <td class="{% if data.net_monthly.get(mk, 0) >= 0 %}text-var-positive{% else %}text-var-negative{% endif %}">
+            {{ "{:+,.0f}".format(data.net_monthly.get(mk, 0)) | replace("+", "+$") | replace("-", "-$") }}
+          </td>
+          {% endfor %}
+          {% endif %}
+          <td class="{% if data.net_ytd >= 0 %}text-var-positive{% else %}text-var-negative{% endif %}">
+            {{ "{:+,.0f}".format(data.net_ytd) | replace("+", "+$") | replace("-", "-$") }}
+          </td>
+          <td>
+            {{ "{:+,.0f}".format(data.net_ytd_budget) | replace("+", "+$") | replace("-", "-$") }}
+          </td>
+          <td class="{% if data.net_variance_dollar >= 0 %}text-var-positive{% else %}text-var-negative{% endif %}">
+            {{ "{:+,.0f}".format(data.net_variance_dollar) | replace("+", "+$") | replace("-", "-$") }}
+          </td>
+          <td class="{% if data.net_variance_pct is not none and data.net_variance_pct >= 0 %}text-var-positive{% elif data.net_variance_pct is not none and data.net_variance_pct < 0 %}text-var-negative{% else %}text-var-neutral{% endif %}">
+            {% if data.net_variance_pct is not none %}{{ "{:+.1f}%".format(data.net_variance_pct) }}{% else %}&mdash;{% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  {# ── Balance Sheet — Material Changes ── #}
+  {% include "partials/balance_sheet_section.html" %}
+
+  {# ── Report footer note ── #}
+  <p class="text-small text-center" style="opacity: 0.6;">
+    Figures based on financial snapshots. Budget prorated on a straight-line basis (annual &divide; 12{% if data.view_mode == "ytd" %} &times; months{% endif %}).
+    {% if data.view_mode == "month" %}
+    {{ data.month_labels[0] }} {{ data.year }} — single month view.
+    {% else %}
+    For {{ data.year }} financial year, Jan&ndash;{{ data.month_labels[-1] }}.
+    {% endif %}
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

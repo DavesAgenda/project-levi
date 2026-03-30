@@ -1,0 +1,34 @@
+{#
+  Chart Card Component
+  ====================
+  A card wrapper for Chart.js canvas elements.
+
+  Parameters:
+    title     : string — card heading
+    canvas_id : string — unique ID for the canvas element
+    height    : string — min-height CSS value (default: "300px")
+    centered  : bool   — center the canvas (for doughnut/pie, default: false)
+    width     : string or none — fixed width for centered charts (e.g. "280px")
+
+  Usage:
+    {% from "components/chart_card.html" import chart_card %}
+    {{ chart_card(title="Budget vs Actuals", canvas_id="budgetChart") }}
+    {{ chart_card(title="Progress", canvas_id="progressChart", centered=true, width="280px") }}
+#}
+
+{% macro chart_card(title, canvas_id, height="300px", centered=false, width=none) %}
+<div class="bg-surface border border-muted rounded-card shadow-card p-6">
+  <h2 class="text-h3 mb-4">{{ title }}</h2>
+  {% if centered %}
+  <div class="flex items-center justify-center" style="min-height: {{ height }};">
+    <div style="position: relative;{% if width %} width: {{ width }}; height: {{ width }};{% endif %}">
+      <canvas id="{{ canvas_id }}"></canvas>
+    </div>
+  </div>
+  {% else %}
+  <div style="position: relative; min-height: {{ height }};">
+    <canvas id="{{ canvas_id }}"></canvas>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}

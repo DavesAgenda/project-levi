@@ -1,0 +1,77 @@
+<!-- Balance Sheet — Material Changes partial for council report -->
+
+{% if bs_data and bs_data.has_data and bs_data.sections %}
+
+<div class="bg-surface border border-muted rounded-card shadow-card overflow-x-auto report-card mt-6">
+  <table class="report-table">
+    <thead>
+      <tr>
+        <th colspan="5" style="text-align: left; font-size: 0.875rem; padding-top: 12px; padding-bottom: 12px; border-bottom: 2px solid var(--primary);">
+          Balance Sheet — Material Changes
+        </th>
+      </tr>
+      <tr>
+        <th style="min-width: 180px;">Account</th>
+        <th>Current ({{ bs_data.current_date }})</th>
+        <th>Prior ({{ bs_data.prior_date }})</th>
+        <th>Change ($)</th>
+        <th>Change (%)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for section in bs_data.sections %}
+      <tr class="section-header">
+        <td colspan="5">{{ section.title }}</td>
+      </tr>
+      {% for row in section.rows %}
+      <tr>
+        <td>{{ row.account_name }}</td>
+        <td>${{ "{:,.0f}".format(row.current_value) }}</td>
+        <td>${{ "{:,.0f}".format(row.prior_value) }}</td>
+        <td class="{% if row.change_dollar > 0 %}text-var-positive{% elif row.change_dollar < 0 %}text-var-negative{% else %}text-var-neutral{% endif %}">
+          {{ "{:+,.0f}".format(row.change_dollar) | replace("+", "+$") | replace("-", "-$") }}
+        </td>
+        <td class="{% if row.change_pct is not none and row.change_pct > 0 %}text-var-positive{% elif row.change_pct is not none and row.change_pct < 0 %}text-var-negative{% else %}text-var-neutral{% endif %}">
+          {% if row.change_pct is not none %}{{ "{:+.1f}%".format(row.change_pct) }}{% else %}&mdash;{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      {# Section subtotal #}
+      <tr class="summary-row">
+        <td>Total {{ section.title }}</td>
+        <td>${{ "{:,.0f}".format(section.current_total) }}</td>
+        <td>${{ "{:,.0f}".format(section.prior_total) }}</td>
+        <td class="{% if section.change_dollar > 0 %}text-var-positive{% elif section.change_dollar < 0 %}text-var-negative{% else %}text-var-neutral{% endif %}">
+          {{ "{:+,.0f}".format(section.change_dollar) | replace("+", "+$") | replace("-", "-$") }}
+        </td>
+        <td></td>
+      </tr>
+      {% endfor %}
+
+      {# Net Assets summary row #}
+      <tr class="net-row">
+        <td>Net Assets</td>
+        <td>${{ "{:,.0f}".format(bs_data.net_assets_current) }}</td>
+        <td>${{ "{:,.0f}".format(bs_data.net_assets_prior) }}</td>
+        <td class="{% if bs_data.net_assets_change > 0 %}text-var-positive{% elif bs_data.net_assets_change < 0 %}text-var-negative{% else %}text-var-neutral{% endif %}">
+          {{ "{:+,.0f}".format(bs_data.net_assets_change) | replace("+", "+$") | replace("-", "-$") }}
+        </td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<p class="text-small text-center mt-2" style="opacity: 0.6;">
+  Showing accounts with changes exceeding $500 or 5%. Compared {{ bs_data.current_date }} vs {{ bs_data.prior_date }}.
+</p>
+
+{% elif bs_data and not bs_data.has_data %}
+
+<div class="bg-surface border border-muted rounded-card shadow-card p-8 text-center mt-6">
+  <p class="text-body" style="opacity: 0.6;">
+    No balance sheet snapshots available for comparison. Import balance sheet data via Xero to see material changes.
+  </p>
+</div>
+
+{% endif %}

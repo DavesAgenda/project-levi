@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% from "components/kpi_card.html" import kpi_card %}
+
+{% block title %}Payroll Scenarios — Church Budget Tool{% endblock %}
+
+{% block content %}
+<div id="payroll-scenarios" class="space-y-8">
+
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold" style="font-family: var(--font-heading); color: var(--color-primary);">
+      Payroll What-If Scenarios
+    </h1>
+    <div class="flex gap-2">
+      <button hx-post="/budget/payroll-scenarios/reset" hx-target="#payroll-scenarios" hx-swap="outerHTML"
+              class="px-4 py-2 text-sm rounded border border-gray-300 hover:bg-gray-50">
+        Reset
+      </button>
+      <button hx-post="/budget/payroll-scenarios/save" hx-target="#payroll-scenarios" hx-swap="outerHTML"
+              class="px-4 py-2 text-sm rounded text-white hover:opacity-90"
+              style="background: var(--color-primary);">
+        Save to Config
+      </button>
+    </div>
+  </div>
+
+  {% if saved is defined and saved %}
+  <div class="p-3 rounded bg-green-50 border border-green-200 text-green-800 text-sm">
+    Scenario saved to payroll.yaml successfully.
+  </div>
+  {% endif %}
+
+  <!-- Impact Summary KPIs -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    {{ kpi_card("Baseline Total", "${:,.0f}".format(baseline_total), accent="gray") }}
+    {{ kpi_card("Scenario Total", "${:,.0f}".format(scenario_total), accent="primary") }}
+    {{ kpi_card("Delta (Gross)", "${:+,.0f}".format(delta), accent="danger" if delta > 0 else "success") }}
+    {{ kpi_card("Delta (Net)", "${:+,.0f}".format(delta_net), accent="danger" if delta_net > 0 else "success") }}
+  </div>
+
+  {% if delta_pct is not none %}
+  <p class="text-sm text-gray-500">
+    Scenario is <strong>{{ "{:+.1f}".format(delta_pct) }}%</strong> vs baseline gross payroll.
+  </p>
+  {% endif %}
+
+  <!-- Diocese Scale Editor -->
+  <section class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-4" style="font-family: var(--font-heading);">Diocese Salary Scales</h2>
+    <form hx-post="/budget/payroll-scenarios/diocese-scales" hx-target="#payroll-scenarios" hx-swap="outerHTML"
+          class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Source</label>
+        <input type="text" name="source" value="{{ diocese.source }}"
+               class="mt-1 block w-full rounded border-gray-300 shadow-sm text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Year</label>
+        <input type="number" name="year" value="{{ diocese.year }}"
+               class="mt-1 block w-full rounded border-gray-300 shadow-sm text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Uplift Factor</label>
+        <input type="number" name="uplift_factor" value="{{ diocese.uplift_factor }}" step="0.001"
+               class="mt-1 block w-full rounded border-gray-300 shadow-sm text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Notes</label>
+        <input type="text" name="notes" value="{{ diocese.notes }}"
+               class="mt-1 block w-full rounded border-gray-300 shadow-sm text-sm">
+      </div>
+      <div class="md:col-span-2">
+        <button type="submit" class="px-4 py-2 text-sm rounded text-white"
+                style="background: var(--color-primary);">Update Scales</button>
+        <button type="button" hx-post="/budget/payroll-scenarios/uplift"
+                hx-target="#payroll-scenarios" hx-swap="outerHTML"
+                class="ml-2 px-4 py-2 text-sm rounded border border-gray-300 hover:bg-gray-50">
+          Apply Uplift to All Staff
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Staff Scenario Table -->
+  <section class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-4" style="font-family: var(--font-heading);">Staff Positions</h2>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr class="border-b text-left text-gray-500">
+            <th class="py-2 px-3">Name</th>
+            <th class="py-2 px-3">Role</th>
+            <th class="py-2 px-3">Grade</th>
+            <th class="py-2 px-3 text-right">FTE</th>
+            <th class="py-2 px-3 text-right">Base Salary</th>
+            <th class="py-2 px-3 text-right">PCR</th>
+            <th class="py-2 px-3 text-right">Total Cost</th>
+            <th class="py-2 px-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in staff_entries %}
+          {% set cost = scenario_staff[loop.index0] if not entry.is_removed and loop.index0 < scenario_staff|length else none %}
+          <tr class="border-b {{ 'opacity-40 line-through' if entry.is_removed else '' }} {{ 'bg-green-50' if entry.is_new else '' }}">
+            <td class="py-2 px-3 font-medium">
+              {{ entry.name }}
+              {% if entry.is_new %}<span class="text-xs text-green-600 ml-1">NEW</span>{% endif %}
+              {% if entry.is_removed %}<span class="text-xs text-red-600 ml-1">REMOVED</span>{% endif %}
+            </td>
+            <td class="py-2 px-3">{{ entry.role }}</td>
+            <td class="py-2 px-3">{{ entry.grade or '—' }}</td>
+            <td class="py-2 px-3 text-right">{{ "%.4f" | format(entry.fte) }}</td>
+            <td class="py-2 px-3 text-right">${{ "{:,.0f}".format(entry.base_salary) }}</td>
+            <td class="py-2 px-3 text-right">${{ "{:,.0f}".format(entry.pcr) }}</td>
+            <td class="py-2 px-3 text-right">
+              {% if cost %}${{ "{:,.0f}".format(cost.total_cost) }}{% else %}—{% endif %}
+            </td>
+            <td class="py-2 px-3">
+              <div class="flex gap-1">
+                {% if entry.is_removed %}
+                <button hx-post="/budget/payroll-scenarios/staff/{{ entry.name }}/restore"
+                        hx-target="#payroll-scenarios" hx-swap="outerHTML"
+                        class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100">
+                  Restore
+                </button>
+                {% else %}
+                <button hx-post="/budget/payroll-scenarios/staff/{{ entry.name }}/remove"
+                        hx-target="#payroll-scenarios" hx-swap="outerHTML"
+                        class="text-xs px-2 py-1 rounded bg-red-50 text-red-700 hover:bg-red-100">
+                  Remove
+                </button>
+                <button hx-post="/budget/payroll-scenarios/staff/{{ entry.name }}/uplift"
+                        hx-target="#payroll-scenarios" hx-swap="outerHTML"
+                        class="text-xs px-2 py-1 rounded bg-yellow-50 text-yellow-700 hover:bg-yellow-100">
+                  Uplift
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Add Staff Form -->
+  <section class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-4" style="font-family: var(--font-heading);">Add Staff Position</h2>
+    <form hx-post="/budget/payroll-scenarios/staff/add" hx-target="#payroll-scenarios" hx-swap="outerHTML"
+          class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Name</label>
+        <input type="text" name="name" required
+               class="mt-1 block w-full rounded border-gray-300 shadow-sm text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Role</label>
+        <select name="role" class="mt-1 block w-full rounded border-gray-300 shadow-sm text-sm">
+          <option value="Permanent">Permanent</option>
+          <option value="Rector">Rector</option>
+          <option value="Assistant Minister">Assistant Minister</option>
+          <option value="Lay Minister">Lay Minister</option>
+          <option value="Curate">Curate</option>
+          <option value="Casual">Casual</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">FTE</label>
+        <input type="number" name="fte" value="1.0" step="0.0001" min="0" max="1"
+               class="mt-1 block w-full rounded border-gray-300 shadow-sm text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Base Salary</label>
+        <input type="number" name="base_salary" value="0" step="0.01"
+               class="mt-1 block w-full rounded border-gray-300 shadow-sm text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Super Rate</label>
+        <input type="number" name="super_rate" value="0.115" step="0.001"
+               class="mt-1 block w-full rounded border-gray-300 shadow-sm text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Grade (clergy only)</label>
+        <select name="grade" class="mt-1 block w-full rounded border-gray-300 shadow-sm text-sm">
+          <option value="">N/A</option>
+          <option value="Accredited">Accredited</option>
+          <option value="3rd Yr Asst">3rd Yr Asst</option>
+          <option value="2nd Yr Asst">2nd Yr Asst</option>
+          <option value="1st Yr Asst">1st Yr Asst</option>
+          <option value="Curate">Curate</option>
+        </select>
+      </div>
+      <div class="md:col-span-3">
+        <button type="submit" class="px-4 py-2 text-sm rounded text-white"
+                style="background: var(--color-primary);">
+          Add Position
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Changes Summary -->
+  {% if has_changes %}
+  <section class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-4" style="font-family: var(--font-heading);">Impact Summary</h2>
+    <table class="min-w-full text-sm">
+      <thead>
+        <tr class="border-b text-left text-gray-500">
+          <th class="py-2 px-3">Staff Member</th>
+          <th class="py-2 px-3">Change</th>
+          <th class="py-2 px-3 text-right">Impact</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for change in staff_changes %}
+        <tr class="border-b">
+          <td class="py-2 px-3">{{ change.name }}</td>
+          <td class="py-2 px-3">
+            <span class="px-2 py-0.5 rounded text-xs
+              {{ 'bg-green-100 text-green-800' if change.type == 'added' else '' }}
+              {{ 'bg-red-100 text-red-800' if change.type == 'removed' else '' }}
+              {{ 'bg-yellow-100 text-yellow-800' if change.type == 'modified' else '' }}">
+              {{ change.type | upper }}
+            </span>
+          </td>
+          <td class="py-2 px-3 text-right {{ 'text-red-600' if change.impact > 0 else 'text-green-600' }}">
+            ${{ "{:+,.0f}".format(change.impact) }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+</div>
+{% endblock %}

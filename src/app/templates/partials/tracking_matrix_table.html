@@ -1,0 +1,152 @@
+{% if matrix.error %}
+  <!-- Error state -->
+  <div class="bg-surface rounded-card shadow-card border border-danger/30 p-8 text-center">
+    <svg class="mx-auto h-10 w-10 text-danger/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+    </svg>
+    <h3 class="font-heading text-h3 mt-3 text-danger">Unable to Load Data</h3>
+    <p class="text-caption text-neutral mt-2">{{ matrix.error }}</p>
+  </div>
+
+{% elif not matrix.has_data %}
+  <!-- No data state -->
+  <div class="bg-surface rounded-card shadow-card border border-outline/20 p-8 text-center">
+    <svg class="mx-auto h-10 w-10 text-neutral/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+    </svg>
+    <h3 class="font-heading text-h3 mt-3">No Data Available</h3>
+    <p class="text-caption text-neutral mt-2">
+      No transactions found for this tracking category in the selected period.
+    </p>
+  </div>
+
+{% else %}
+  <!-- Matrix header info -->
+  {% if matrix.tracking_category %}
+  <div class="flex items-center gap-3 mb-2">
+    <span class="inline-flex items-center px-3 py-1 rounded-badge bg-primary/10 text-primary text-caption font-medium">
+      {{ matrix.tracking_category.name }}
+    </span>
+    <span class="text-caption text-neutral">
+      {{ matrix.from_date }} to {{ matrix.to_date }}
+    </span>
+  </div>
+  {% endif %}
+
+  <!-- Matrix table -->
+  <div class="bg-surface rounded-card shadow-card border border-outline/20 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-muted/50">
+            <th class="text-left px-4 py-3 font-heading font-semibold text-text whitespace-nowrap">Budget Category</th>
+            {% for col in matrix.column_headers %}
+            <th class="text-right px-4 py-3 font-heading font-semibold text-text whitespace-nowrap">{{ col }}</th>
+            {% endfor %}
+            <th class="text-right px-4 py-3 font-heading font-semibold text-text whitespace-nowrap border-l-2 border-outline/20">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <!-- Income section -->
+          <tr class="bg-success/5">
+            <td colspan="{{ matrix.column_headers|length + 2 }}" class="px-4 py-2 font-heading font-semibold text-success text-caption uppercase tracking-wider">
+              Income
+            </td>
+          </tr>
+          {% for row in matrix.income_rows %}
+          <tr class="border-t border-outline/10 hover:bg-muted/20 transition-colors">
+            <td class="px-4 py-2.5 text-text font-body whitespace-nowrap">{{ row.budget_label }}</td>
+            {% for col in matrix.column_headers %}
+            <td class="px-4 py-2.5 text-right font-mono text-text-body tabular-nums">
+              {% if row.values[col] %}
+                {{ "${:,.0f}".format(row.values[col]) }}
+              {% else %}
+                <span class="text-neutral/40">-</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+            <td class="px-4 py-2.5 text-right font-mono font-medium text-text tabular-nums border-l-2 border-outline/20">
+              {{ "${:,.0f}".format(row.total) }}
+            </td>
+          </tr>
+          {% endfor %}
+
+          <!-- Income totals -->
+          <tr class="border-t-2 border-success/30 bg-success/5 font-semibold">
+            <td class="px-4 py-2.5 font-heading text-success">Total Income</td>
+            {% for col in matrix.column_headers %}
+            <td class="px-4 py-2.5 text-right font-mono text-success tabular-nums">
+              {{ "${:,.0f}".format(matrix.income_totals[col]) }}
+            </td>
+            {% endfor %}
+            <td class="px-4 py-2.5 text-right font-mono font-bold text-success tabular-nums border-l-2 border-outline/20">
+              {{ "${:,.0f}".format(matrix.income_grand_total) }}
+            </td>
+          </tr>
+
+          <!-- Spacer -->
+          <tr><td colspan="{{ matrix.column_headers|length + 2 }}" class="py-1"></td></tr>
+
+          <!-- Expenses section -->
+          <tr class="bg-danger/5">
+            <td colspan="{{ matrix.column_headers|length + 2 }}" class="px-4 py-2 font-heading font-semibold text-danger text-caption uppercase tracking-wider">
+              Expenses
+            </td>
+          </tr>
+          {% for row in matrix.expense_rows %}
+          <tr class="border-t border-outline/10 hover:bg-muted/20 transition-colors">
+            <td class="px-4 py-2.5 text-text font-body whitespace-nowrap">{{ row.budget_label }}</td>
+            {% for col in matrix.column_headers %}
+            <td class="px-4 py-2.5 text-right font-mono text-text-body tabular-nums">
+              {% if row.values[col] %}
+                {{ "${:,.0f}".format(row.values[col]) }}
+              {% else %}
+                <span class="text-neutral/40">-</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+            <td class="px-4 py-2.5 text-right font-mono font-medium text-text tabular-nums border-l-2 border-outline/20">
+              {{ "${:,.0f}".format(row.total) }}
+            </td>
+          </tr>
+          {% endfor %}
+
+          <!-- Expense totals -->
+          <tr class="border-t-2 border-danger/30 bg-danger/5 font-semibold">
+            <td class="px-4 py-2.5 font-heading text-danger">Total Expenses</td>
+            {% for col in matrix.column_headers %}
+            <td class="px-4 py-2.5 text-right font-mono text-danger tabular-nums">
+              {{ "${:,.0f}".format(matrix.expense_totals[col]) }}
+            </td>
+            {% endfor %}
+            <td class="px-4 py-2.5 text-right font-mono font-bold text-danger tabular-nums border-l-2 border-outline/20">
+              {{ "${:,.0f}".format(matrix.expense_grand_total) }}
+            </td>
+          </tr>
+
+          <!-- Spacer -->
+          <tr><td colspan="{{ matrix.column_headers|length + 2 }}" class="py-1"></td></tr>
+
+          <!-- Net position -->
+          <tr class="border-t-2 border-primary/40 bg-primary/5 font-bold">
+            <td class="px-4 py-3 font-heading text-text text-base">Net Position</td>
+            {% for col in matrix.column_headers %}
+            <td class="px-4 py-3 text-right font-mono tabular-nums
+              {% if matrix.net_position[col] >= 0 %}text-success{% else %}text-danger{% endif %}
+            ">
+              {{ "${:,.0f}".format(matrix.net_position[col]) }}
+            </td>
+            {% endfor %}
+            <td class="px-4 py-3 text-right font-mono font-bold tabular-nums border-l-2 border-outline/20
+              {% if matrix.net_grand_total >= 0 %}text-success{% else %}text-danger{% endif %}
+            ">
+              {{ "${:,.0f}".format(matrix.net_grand_total) }}
+            </td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}

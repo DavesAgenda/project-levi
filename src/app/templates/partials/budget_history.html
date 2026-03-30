@@ -1,0 +1,112 @@
+<!-- Budget History / Changelog partial (CHA-196) -->
+<!-- Loaded via GET /budget/{year}/history, rendered as htmx partial -->
+
+<div class="bg-surface rounded-card shadow-card border border-outline/20 p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="font-heading text-h3">Budget {{ year }} — History</h3>
+    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+      {% if budget.status.value == 'draft' %}bg-amber-100 text-amber-800
+      {% elif budget.status.value == 'proposed' %}bg-blue-100 text-blue-800
+      {% elif budget.status.value == 'approved' %}bg-green-100 text-green-800
+      {% endif %}">
+      {{ budget.status.value | title }}
+    </span>
+  </div>
+
+  {% if budget.approved_date %}
+  <p class="text-caption text-neutral mb-4">Approved on {{ budget.approved_date.isoformat() }}</p>
+  {% endif %}
+
+  {% if changelog %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-outline/20 text-left">
+          <th class="py-2 px-3 font-medium text-neutral">Date / Time</th>
+          <th class="py-2 px-3 font-medium text-neutral">Action</th>
+          <th class="py-2 px-3 font-medium text-neutral">User</th>
+          <th class="py-2 px-3 font-medium text-neutral">Summary</th>
+          <th class="py-2 px-3 font-medium text-neutral">Version</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in changelog | reverse %}
+        <tr class="border-b border-outline/10 hover:bg-muted/30">
+          <td class="py-2 px-3 text-caption whitespace-nowrap">{{ entry.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td class="py-2 px-3">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+              {% if entry.action == 'status_change' %}bg-primary/10 text-primary
+              {% elif entry.action == 'create' %}bg-green-100 text-green-800
+              {% elif entry.action == 'clone' %}bg-purple-100 text-purple-800
+              {% else %}bg-neutral/10 text-neutral
+              {% endif %}">
+              {{ entry.action | replace('_', ' ') | title }}
+            </span>
+          </td>
+          <td class="py-2 px-3">{{ entry.user }}</td>
+          <td class="py-2 px-3">{{ entry.summary }}</td>
+          <td class="py-2 px-3 text-center">{{ entry.version if entry.version is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-caption text-neutral text-center py-4">No history entries yet.</p>
+  {% endif %}
+
+  <!-- Workflow action buttons -->
+  <div class="mt-6 flex gap-3 justify-end" x-data="{ confirmAction: null }">
+    {% if budget.status.value == 'draft' %}
+    <button
+      class="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors"
+      @click="confirmAction = 'proposed'"
+      >Propose Budget</button>
+    {% elif budget.status.value == 'proposed' %}
+    <button
+      class="px-4 py-2 bg-neutral/20 text-neutral rounded-lg font-medium hover:bg-neutral/30 transition-colors"
+      @click="confirmAction = 'draft'"
+      >Revert to Draft</button>
+    <button
+      class="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+      @click="confirmAction = 'approved'"
+      >Approve Budget</button>
+    {% elif budget.status.value == 'approved' %}
+    <button
+      class="px-4 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 transition-colors"
+      @click="confirmAction = 'amend'"
+      >Create Amendment</button>
+    {% endif %}
+
+    <!-- Confirmation dialog -->
+    <template x-if="confirmAction">
+      <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="confirmAction = null">
+        <div class="bg-surface rounded-card shadow-lg p-6 max-w-sm mx-4">
+          <h4 class="font-heading text-h4 mb-2">Confirm Action</h4>
+          <p class="text-body mb-4" x-text="
+            confirmAction === 'proposed' ? 'Mark this budget as proposed? It will become read-only.' :
+            confirmAction === 'approved' ? 'Approve this budget? A versioned snapshot will be saved.' :
+            confirmAction === 'draft' ? 'Revert to draft? The budget will become editable again.' :
+            'Create an amendment? This will revert the approved budget to draft status.'
+          "></p>
+          <div class="flex gap-3 justify-end">
+            <button class="px-3 py-1.5 text-neutral hover:bg-neutral/10 rounded" @click="confirmAction = null">Cancel</button>
+            <button
+              class="px-3 py-1.5 bg-primary text-white rounded font-medium"
+              @click="
+                const url = confirmAction === 'amend'
+                  ? '/budget/{{ year }}/create-amendment'
+                  : '/budget/{{ year }}/transition';
+                const body = confirmAction === 'amend'
+                  ? new URLSearchParams({ user: 'treasurer' })
+                  : new URLSearchParams({ new_status: confirmAction, user: 'treasurer' });
+                fetch(url, { method: 'POST', body: body })
+                  .then(r => { if (r.ok) location.reload(); else r.json().then(j => alert(j.detail)); });
+                confirmAction = null;
+              ">Confirm</button>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>

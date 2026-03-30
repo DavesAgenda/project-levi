@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% from "components/kpi_card.html" import kpi_card %}
+{% from "components/sortable_table.html" import sortable_table %}
+
+{% block title %}Payroll Summary — New Light Budget{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-h1">Payroll Summary</h1>
+      {% if data.has_data and data.snapshot_period %}
+      <p class="text-caption mt-1" style="opacity: 0.7;">
+        Period: {{ data.snapshot_period }} &middot; As of {{ data.snapshot_date }}
+      </p>
+      {% endif %}
+    </div>
+    <a href="/" class="inline-flex items-center text-primary hover:text-primary-hover font-medium transition-colors">
+      &larr; Back to Dashboard
+    </a>
+  </div>
+
+  {% if not data.has_data %}
+  {# ── Empty state ── #}
+  <div class="bg-surface border border-muted rounded-card shadow-card p-12 text-center">
+    <div class="max-w-md mx-auto">
+      <svg class="w-16 h-16 mx-auto mb-4" style="color: var(--neutral);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+      <h2 class="text-h2 mb-2">No payroll data</h2>
+      <p class="text-body mb-6" style="opacity: 0.7;">
+        Configure staff details in <code class="font-mono text-sm bg-muted px-1 py-0.5 rounded">config/payroll.yaml</code>
+        and import financial data to see payroll summaries.
+      </p>
+    </div>
+  </div>
+
+  {% else %}
+  {# ── KPI Summary Cards ── #}
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    {{ kpi_card(
+        label="Total Payroll Cost",
+        value="${:,.0f}".format(data.total_payroll_cost),
+        subtitle="After recoveries: ${:,.0f}".format(data.net_payroll_cost)
+    ) }}
+    {{ kpi_card(
+        label="Total Recoveries",
+        value="${:,.0f}".format(data.total_recoveries | abs),
+        subtitle="Offsets applied to payroll",
+        accent="--success"
+    ) }}
+    {{ kpi_card(
+        label="Payroll % of Income",
+        value="{}%".format(data.payroll_pct_of_income) if data.payroll_pct_of_income is not none else "—",
+        subtitle="Total income: ${:,.0f}".format(data.total_income) if data.total_income > 0 else none,
+        accent="--warning" if data.payroll_pct_of_income and data.payroll_pct_of_income > 60 else "--primary"
+    ) }}
+    {{ kpi_card(
+        label="Staff Count",
+        value="{} staff".format(data.staff | length),
+        subtitle="{:.1f} FTE total".format(staff_summary.fte)
+    ) }}
+  </div>
+
+  {# ── Diocese Scale Reference ── #}
+  {% if data.diocese_scales.source %}
+  <div class="bg-surface border border-muted rounded-card shadow-card p-6">
+    <h2 class="text-h3 mb-3">Diocese Scale Reference</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-caption">
+      <div>
+        <span class="font-semibold uppercase">Source</span>
+        <p class="mt-1">{{ data.diocese_scales.source }}</p>
+      </div>
+      <div>
+        <span class="font-semibold uppercase">Year</span>
+        <p class="mt-1">{{ data.diocese_scales.year }}</p>
+      </div>
+      <div>
+        <span class="font-semibold uppercase">Uplift</span>
+        <p class="mt-1">{{ "{}%".format((data.diocese_scales.uplift_factor * 100) | round(1)) }}</p>
+      </div>
+    </div>
+    {% if data.diocese_scales.notes %}
+    <p class="text-small mt-3">{{ data.diocese_scales.notes }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ── Per-Staff Breakdown Table ── #}
+  <div class="bg-surface border border-muted rounded-card shadow-card overflow-hidden">
+    <div class="p-6 border-b border-muted">
+      <h2 class="text-h2">Staff Cost Breakdown</h2>
+    </div>
+    {{ sortable_table(
+        id="staff",
+        columns=[
+          {"label": "Name", "key": "name", "align": "left", "format": "string"},
+          {"label": "Role", "key": "role", "align": "left", "format": "string"},
+          {"label": "FTE", "key": "fte", "format": "number"},
+          {"label": "Base Salary", "key": "base_salary", "format": "currency"},
+          {"label": "Super", "key": "super_amount", "format": "currency"},
+          {"label": "PCR", "key": "pcr", "format": "currency"},
+          {"label": "Allowances", "key": "allowances", "format": "currency"},
+          {"label": "Recoveries", "key": "recoveries", "format": "currency_signed"},
+          {"label": "Total Cost", "key": "total_cost", "format": "currency"},
+          {"label": "Net Cost", "key": "net_cost", "format": "currency"},
+        ],
+        rows=staff_rows,
+        summary=staff_summary,
+        sort_by="name",
+        sort_dir="asc",
+    ) }}
+  </div>
+
+  {# ── Budget vs Actuals by Payroll Category ── #}
+  {% if category_rows %}
+  <div class="bg-surface border border-muted rounded-card shadow-card overflow-hidden">
+    <div class="p-6 border-b border-muted">
+      <h2 class="text-h2">Payroll Budget vs Actuals</h2>
+    </div>
+    {{ sortable_table(
+        id="payroll_categories",
+        columns=[
+          {"label": "Category", "key": "label", "align": "left", "format": "string"},
+          {"label": "Actual", "key": "actual", "format": "currency"},
+          {"label": "Budget", "key": "budget", "format": "currency"},
+          {"label": "Variance ($)", "key": "variance_dollar", "format": "currency_signed"},
+          {"label": "Variance (%)", "key": "variance_pct", "format": "percent_status"},
+        ],
+        rows=category_rows,
+        summary=category_summary,
+        sort_by="label",
+        sort_dir="asc",
+    ) }}
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

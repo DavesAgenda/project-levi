@@ -1,0 +1,50 @@
+/* tokens.css — Design tokens for Church Budget Tool */
+/* Source of truth: design_spec.md Section 1 */
+/* Brand: New Light Anglican Church — https://newlightanglican.church/brand/ */
+
+:root {
+  /* -- Surfaces -- */
+  --bg: #FFFFFF;
+  --surface: #FFFFFF;
+  --muted: #e8e9eb;
+
+  /* -- Text -- */
+  --text: #313638;
+  --text-body: #000000;
+
+  /* -- Brand -- */
+  --primary: #ff7300;
+  --primary-hover: #ff9d4c;
+  --accent: #ff8a2a;
+  --secondary: #e0dfd5;
+
+  /* -- Semantic -- */
+  --success: #2E7D32;
+  --warning: #F9A825;
+  --danger: #C62828;
+
+  /* -- Neutral -- */
+  --outline: #60695c;
+  --neutral: #747d7d;
+
+  /* -- Typography -- */
+  --font-heading: 'Inter Display', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* Typography utility classes — design_spec.md Section 3.1 */
+.text-h1      { font: 900 2rem/1.2 var(--font-heading); color: var(--text); }
+.text-h2      { font: 700 1.5rem/1.3 var(--font-heading); color: var(--text); }
+.text-h3      { font: 600 1.25rem/1.3 var(--font-heading); color: var(--text); }
+.text-body    { font: 400 1rem/1.5 var(--font-body); color: var(--text-body); }
+.text-caption { font: 400 0.875rem/1.4 var(--font-body); color: var(--text); }
+.text-small   { font: 400 0.75rem/1.4 var(--font-body); color: var(--neutral); }
+.text-figure  { font: 500 1rem/1.4 var(--font-mono); color: var(--text); }
+.text-figure-lg { font: 600 1.5rem/1.2 var(--font-mono); color: var(--text); }
+
+/* Focus ring — design_spec.md Section 9.1 */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
