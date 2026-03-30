@@ -1,0 +1,26 @@
+# Role-based access control for the Church Budget Tool.
+# Each role maps to a list of permitted emails and a set of permissions.
+#
+# Permissions:
+#   read              — view dashboards, reports, budget summaries
+#   write             — edit budget figures, scenarios, forecasts
+#   payroll_detail    — see individual payroll line items
+#   payroll_scenarios — create / modify payroll what-if scenarios
+
+roles:
+  admin:
+    emails: []  # e.g. treasurer@newlightanglican.org
+    permissions:
+      - read
+      - write
+      - payroll_detail
+      - payroll_scenarios
+  board:
+    emails: []  # e.g. warden@newlightanglican.org
+    permissions:
+      - read
+      - payroll_detail
+  staff:
+    emails: []  # e.g. admin@newlightanglican.org
+    permissions:
+      - read

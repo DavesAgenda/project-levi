@@ -11,9 +11,15 @@ services:
     environment:
       - XERO_CLIENT_ID_FILE=/run/secrets/xero_client_id
       - XERO_CLIENT_SECRET_FILE=/run/secrets/xero_client_secret
+      - AUTH0_DOMAIN_FILE=/run/secrets/auth0_domain
+      - AUTH0_CLIENT_ID_FILE=/run/secrets/auth0_client_id
+      - AUTH0_CLIENT_SECRET_FILE=/run/secrets/auth0_client_secret
     secrets:
       - xero_client_id
       - xero_client_secret
+      - auth0_domain
+      - auth0_client_id
+      - auth0_client_secret
     networks:
       - church-net
     mem_limit: 512m
@@ -34,3 +40,9 @@ secrets:
     file: ./secrets/xero_client_id.txt
   xero_client_secret:
     file: ./secrets/xero_client_secret.txt
+  auth0_domain:
+    file: ./secrets/auth0_domain.txt
+  auth0_client_id:
+    file: ./secrets/auth0_client_id.txt
+  auth0_client_secret:
+    file: ./secrets/auth0_client_secret.txt

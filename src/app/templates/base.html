@@ -72,6 +72,19 @@
   <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
 
   {% block head %}{% endblock %}
+
+  <!-- CSRF: read token from cookie and send on every htmx request -->
+  <script>
+    function getCsrfToken() {
+      var match = document.cookie.match(/(^|;\s*)csrf_token=([^;]+)/);
+      return match ? match[2] : '';
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      document.body.addEventListener('htmx:configRequest', function(event) {
+        event.detail.headers['X-CSRF-Token'] = getCsrfToken();
+      });
+    });
+  </script>
 </head>
 <body class="bg-bg text-text font-body min-h-screen flex flex-col">
 

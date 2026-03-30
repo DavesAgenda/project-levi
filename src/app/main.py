@@ -5,6 +5,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from app.middleware.csrf import CSRFMiddleware
+
 from app.routers.agm_report import router as agm_report_router
 from app.routers.council_report import router as council_report_router
 from app.routers.csv_upload import router as csv_router
@@ -26,6 +28,9 @@ APP_DIR = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR / "static"
 
 app = FastAPI(title="Church Budget Tool")
+
+# CSRF protection (double-submit cookie pattern)
+app.add_middleware(CSRFMiddleware)
 
 # Register routers — dashboard first so "/" is handled there
 app.include_router(dashboard_router)
