@@ -98,8 +98,8 @@
                   ? '/budget/{{ year }}/create-amendment'
                   : '/budget/{{ year }}/transition';
                 const body = confirmAction === 'amend'
-                  ? new URLSearchParams({ user: 'treasurer' })
-                  : new URLSearchParams({ new_status: confirmAction, user: 'treasurer' });
+                  ? new URLSearchParams({})
+                  : new URLSearchParams({ new_status: confirmAction });
                 fetch(url, { method: 'POST', body: body })
                   .then(r => { if (r.ok) location.reload(); else r.json().then(j => alert(j.detail)); });
                 confirmAction = null;

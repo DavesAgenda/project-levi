@@ -9,9 +9,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+
+from app.dependencies.auth import require_role
+from app.models.auth import User
 
 from app.models.budget import BudgetStatus
 from app.services.budget import (
@@ -37,13 +40,13 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 async def budget_transition(
     year: int,
     new_status: str = Form(...),
+    current_user: User = Depends(require_role("admin")),
 ):
     """Transition a budget's status (draft->proposed->approved, or revert).
 
     Returns JSON with the new status and changelog summary.
     """
-    # Hardcode user until auth is implemented (Phase 4)
-    user = "treasurer"
+    user = current_user.email
 
     # Validate year range
     if year < 2000 or year > 2100:
@@ -94,10 +97,10 @@ async def budget_transition(
 @router.post("/budget/{year}/create-amendment")
 async def create_amendment(
     year: int,
+    current_user: User = Depends(require_role("admin")),
 ):
     """Create an amendment from an approved budget — reverts to draft with override."""
-    # Hardcode user until auth is implemented (Phase 4)
-    user = "treasurer"
+    user = current_user.email
     try:
         budget = load_budget_file(year)
     except BudgetNotFoundError:

@@ -53,6 +53,13 @@ async def payroll_summary(request: Request):
     """Render the payroll summary report page."""
     data = compute_payroll_data()
 
+    # Payroll detail redaction flag (CHA-204 prep):
+    # admin + board see full detail; staff gets redacted
+    user = getattr(request.state, "user", None)
+    redact_payroll = True  # default: redact
+    if user is not None and user.has_permission("payroll_detail"):
+        redact_payroll = False
+
     staff_rows = [_staff_to_row(s) for s in data.staff]
     category_rows = [_category_to_row(c) for c in data.category_actuals]
 
@@ -91,5 +98,6 @@ async def payroll_summary(request: Request):
             "staff_summary": staff_summary,
             "category_rows": category_rows,
             "category_summary": category_summary,
+            "redact_payroll": redact_payroll,
         },
     )

@@ -12,6 +12,30 @@ from app.csv_import import load_chart_of_accounts
 from app.models import ChartOfAccounts
 
 # ---------------------------------------------------------------------------
+# Auth bypass for all tests
+# ---------------------------------------------------------------------------
+# The app now requires JWT authentication via AuthMiddleware.
+# Rather than injecting real JWT cookies into every test, we set the
+# module-level ``override_user`` hook so the middleware skips JWT
+# verification and injects a default admin user.
+# ---------------------------------------------------------------------------
+
+import app.middleware.auth as _auth_mod
+from app.models.auth import User
+
+_TEST_ADMIN_USER = User(
+    email="test-admin@newlightanglican.org",
+    name="Test Admin",
+    role="admin",
+    permissions=["read", "write", "payroll_detail", "payroll_scenarios"],
+)
+
+# Set at import time so module-level ``client = TestClient(app)`` objects
+# created in test modules also benefit.
+_auth_mod.override_user = _TEST_ADMIN_USER
+
+
+# ---------------------------------------------------------------------------
 # CSRF auto-injection for all tests
 # ---------------------------------------------------------------------------
 # The app now requires a CSRF token (double-submit cookie) on every

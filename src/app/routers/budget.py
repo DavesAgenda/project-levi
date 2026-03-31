@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Form, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+
+from app.dependencies.auth import require_role
+from app.models.auth import User
 
 from app.models.budget import BudgetFile, BudgetSection, BudgetStatus
 from app.services.budget import (
@@ -397,6 +400,7 @@ async def update_budget_line(
     item_key: str,
     value: str = Form(""),
     mtime: float = Form(...),
+    current_user: User = Depends(require_role("admin")),
 ):
     """Inline update a single budget line item. Returns updated partial."""
     _validate_year(year)
@@ -441,7 +445,7 @@ async def update_budget_line(
     save_budget_file(
         budget,
         expected_mtime=mtime,
-        user="treasurer",
+        user=current_user.email,
         summary=f"Updated {section_key}.{item_key} to {parsed_value}",
     )
     new_mtime = get_budget_mtime(year)
@@ -470,6 +474,7 @@ async def update_section_notes(
     section_key: str,
     notes: str = Form(""),
     mtime: float = Form(...),
+    current_user: User = Depends(require_role("admin")),
 ):
     """Update section notes."""
     _validate_year(year)
@@ -494,7 +499,7 @@ async def update_section_notes(
     save_budget_file(
         budget,
         expected_mtime=mtime,
-        user="treasurer",
+        user=current_user.email,
         summary=f"Updated notes for {section_key}",
     )
     new_mtime = get_budget_mtime(year)
@@ -513,6 +518,7 @@ async def change_status(
     year: int,
     target: str = Form(...),
     mtime: float = Form(...),
+    current_user: User = Depends(require_role("admin")),
 ):
     """Transition budget status."""
     try:
@@ -530,7 +536,7 @@ async def change_status(
             budget,
             target_status,
             expected_mtime=mtime,
-            user="treasurer",
+            user=current_user.email,
         )
     except BudgetStatusError as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -548,6 +554,7 @@ async def unlock_budget(
     request: Request,
     year: int,
     mtime: float = Form(...),
+    current_user: User = Depends(require_role("admin")),
 ):
     """Unlock a non-draft budget by reverting it to draft status.
 
@@ -574,7 +581,7 @@ async def unlock_budget(
             BudgetStatus.draft,
             override=True,
             expected_mtime=mtime,
-            user="treasurer",
+            user=current_user.email,
         )
     except BudgetStatusError as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -591,13 +598,14 @@ async def create_draft(
     request: Request,
     year: int = Form(...),
     base_year: int = Form(0),
+    current_user: User = Depends(require_role("admin")),
 ):
     """Create a new draft budget, optionally cloned from a prior year."""
     try:
         create_draft_budget(
             year,
             base_year=base_year if base_year > 0 else None,
-            user="treasurer",
+            user=current_user.email,
         )
     except BudgetServiceError as e:
         raise HTTPException(status_code=409, detail=str(e))

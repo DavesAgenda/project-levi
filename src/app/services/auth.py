@@ -127,12 +127,21 @@ def _invalidate_jwks_cache() -> None:
 # 1. get_auth0_login_url
 # ---------------------------------------------------------------------------
 
-def get_auth0_login_url(redirect_uri: str) -> str:
+def get_auth0_login_url(redirect_uri: str, *, state: str | None = None) -> str:
     """Return the Auth0 Universal Login URL the browser should be redirected to.
 
-    Includes a random ``state`` parameter for CSRF protection.
+    Parameters
+    ----------
+    redirect_uri:
+        The callback URL Auth0 will redirect to after authentication.
+    state:
+        Optional opaque value passed through the Auth0 flow.  When supplied the
+        caller can encode application-specific data (e.g. a ``next`` URL) while
+        still getting CSRF protection via a random nonce prefix.  If *None* a
+        random token is generated automatically.
     """
-    state = secrets.token_urlsafe(32)
+    if state is None:
+        state = secrets.token_urlsafe(32)
     params = {
         "response_type": "code",
         "client_id": auth0_settings.client_id,

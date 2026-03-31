@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+
+from app.dependencies.auth import require_role
+from app.models.auth import User
 
 from app.services.payroll_scenarios import (
     PayrollScenario,
@@ -91,6 +94,7 @@ async def update_diocese(
     year: int = Form(2026),
     uplift_factor: float = Form(0.0),
     notes: str = Form(""),
+    current_user: User = Depends(require_role("admin")),
 ):
     """Update diocese scale settings."""
     scenario = _get_scenario()
@@ -118,6 +122,7 @@ async def add_staff_position(
     base_salary: float = Form(0.0),
     super_rate: float = Form(0.115),
     grade: str = Form(""),
+    current_user: User = Depends(require_role("admin")),
 ):
     """Add a new staff position to the scenario."""
     scenario = _get_scenario()
@@ -135,7 +140,7 @@ async def add_staff_position(
 
 
 @router.post("/staff/{staff_name}/remove", response_class=HTMLResponse)
-async def remove_staff_position(request: Request, staff_name: str):
+async def remove_staff_position(request: Request, staff_name: str, current_user: User = Depends(require_role("admin"))):
     """Remove a staff position from the scenario."""
     scenario = _get_scenario()
     try:
@@ -147,7 +152,7 @@ async def remove_staff_position(request: Request, staff_name: str):
 
 
 @router.post("/staff/{staff_name}/restore", response_class=HTMLResponse)
-async def restore_staff_position(request: Request, staff_name: str):
+async def restore_staff_position(request: Request, staff_name: str, current_user: User = Depends(require_role("admin"))):
     """Restore a previously removed staff member."""
     scenario = _get_scenario()
     try:
@@ -163,6 +168,7 @@ async def update_staff_fte(
     request: Request,
     staff_name: str,
     fte: float = Form(...),
+    current_user: User = Depends(require_role("admin")),
 ):
     """Change FTE for a staff member."""
     scenario = _get_scenario()
@@ -179,6 +185,7 @@ async def update_staff_step(
     request: Request,
     staff_name: str,
     grade: str = Form(...),
+    current_user: User = Depends(require_role("admin")),
 ):
     """Apply a salary scale step change."""
     scenario = _get_scenario()
@@ -195,7 +202,7 @@ async def update_staff_step(
 # ---------------------------------------------------------------------------
 
 @router.post("/uplift", response_class=HTMLResponse)
-async def apply_uplift_all(request: Request):
+async def apply_uplift_all(request: Request, current_user: User = Depends(require_role("admin"))):
     """Apply diocese uplift to all staff base salaries."""
     scenario = _get_scenario()
     apply_uplift(scenario)
@@ -204,7 +211,7 @@ async def apply_uplift_all(request: Request):
 
 
 @router.post("/staff/{staff_name}/uplift", response_class=HTMLResponse)
-async def apply_uplift_single(request: Request, staff_name: str):
+async def apply_uplift_single(request: Request, staff_name: str, current_user: User = Depends(require_role("admin"))):
     """Apply diocese uplift to a single staff member."""
     scenario = _get_scenario()
     apply_uplift(scenario, name=staff_name)
@@ -238,7 +245,7 @@ async def scenario_preview():
 # ---------------------------------------------------------------------------
 
 @router.post("/save", response_class=HTMLResponse)
-async def save_scenario(request: Request):
+async def save_scenario(request: Request, current_user: User = Depends(require_role("admin"))):
     """Save the current scenario to payroll.yaml."""
     scenario = _get_scenario()
     save_scenario_to_config(scenario)
@@ -248,7 +255,7 @@ async def save_scenario(request: Request):
 
 
 @router.post("/reset", response_class=HTMLResponse)
-async def reset_scenario(request: Request):
+async def reset_scenario(request: Request, current_user: User = Depends(require_role("admin"))):
     """Reset the scenario to the current payroll.yaml state."""
     scenario = _reset_scenario()
     ctx = _build_context(scenario)

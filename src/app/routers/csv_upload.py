@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+
+from app.dependencies.auth import require_role
+from app.models.auth import User
 
 from app.csv_import import import_csv, load_chart_of_accounts, to_snapshot
 from app.models import ImportResult
@@ -63,6 +66,7 @@ async def _read_and_validate_upload(file: UploadFile) -> bytes:
 
 @router.post("/upload", response_model=ImportResult)
 async def upload_csv(
+    current_user: User = Depends(require_role("admin")),
     file: UploadFile = File(..., description="Xero P&L CSV export"),
     strict: bool = Query(
         True,
@@ -103,6 +107,7 @@ async def upload_csv(
 
 @router.post("/preview", response_model=ImportResult)
 async def preview_csv(
+    current_user: User = Depends(require_role("admin")),
     file: UploadFile = File(..., description="Xero P&L CSV export"),
 ) -> ImportResult:
     """Preview a CSV import without committing.

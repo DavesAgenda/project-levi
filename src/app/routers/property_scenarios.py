@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+
+from app.dependencies.auth import require_role
+from app.models.auth import User
 
 from app.services.property_scenarios import (
     ScenarioInput,
@@ -41,7 +44,7 @@ async def property_scenario_panel(request: Request, year: int):
 
 
 @router.post("/{year}/preview", response_class=HTMLResponse)
-async def property_scenario_preview(request: Request, year: int):
+async def property_scenario_preview(request: Request, year: int, current_user: User = Depends(require_role("admin"))):
     """Compute scenario preview from form inputs. Returns updated partial via htmx."""
     form = await request.form()
     form_dict = dict(form)

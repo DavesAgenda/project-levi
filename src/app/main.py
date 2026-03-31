@@ -2,11 +2,13 @@
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
+from app.middleware.auth import AuthMiddleware
 from app.middleware.csrf import CSRFMiddleware
 
+from app.routers.auth import router as auth_router
 from app.routers.agm_report import router as agm_report_router
 from app.routers.council_report import router as council_report_router
 from app.routers.csv_upload import router as csv_router
@@ -29,10 +31,15 @@ STATIC_DIR = APP_DIR / "static"
 
 app = FastAPI(title="Church Budget Tool")
 
-# CSRF protection (double-submit cookie pattern)
+# Middleware stack — order matters!
+# CSRF runs first (innermost), then Auth (outermost).
+# Starlette executes middleware in reverse registration order,
+# so we register CSRF first, then Auth.
 app.add_middleware(CSRFMiddleware)
+app.add_middleware(AuthMiddleware)
 
-# Register routers — dashboard first so "/" is handled there
+# Register routers — auth first, then dashboard so "/" is handled there
+app.include_router(auth_router)
 app.include_router(dashboard_router)
 app.include_router(agm_report_router)
 app.include_router(council_report_router)
@@ -52,6 +59,24 @@ app.include_router(xero_reports_router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+# ---------------------------------------------------------------------------
+# Inject ``user`` into all Jinja2 template contexts
+# ---------------------------------------------------------------------------
+
+@app.middleware("http")
+async def inject_user_into_templates(request: Request, call_next):
+    """Make ``request.state.user`` available as ``user`` in Jinja2 templates.
+
+    We patch ``templates.TemplateResponse`` at the router level, but the
+    simplest universal approach is an ``@app.middleware`` that modifies the
+    response *context* before the template is rendered.  Since Jinja2Templates
+    uses the ``request`` object, templates can already access
+    ``request.state.user``.  This middleware is a no-op pass-through; templates
+    should use ``request.state.user`` directly.
+    """
+    return await call_next(request)
 
 
 @app.get("/health")
