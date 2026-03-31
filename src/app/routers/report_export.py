@@ -16,9 +16,11 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse, Response
 
+from app.dependencies.auth import require_permission, should_redact_payroll
+from app.models.auth import User
 from app.services.agm_report import compute_agm_report
 from app.services.council_report import compute_council_report
 from app.services.payroll import compute_payroll_data
@@ -79,6 +81,7 @@ _VIEW_URLS = {
 
 @router.get("/{report_type}/export")
 async def export_report(
+    request: Request,
     report_type: str,
     format: str = Query(
         ...,
@@ -111,6 +114,16 @@ async def export_report(
             status_code=400,
             detail="Invalid format. Use 'md' for Markdown or 'pdf' for PDF.",
         )
+
+    # Payroll export: enforce payroll_detail permission (CHA-207 audit fix)
+    # Blocks both markdown and PDF export for users without payroll_detail.
+    if report_type == "payroll":
+        user = getattr(request.state, "user", None)
+        if should_redact_payroll(user):
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: payroll export requires payroll_detail permission",
+            )
 
     # PDF: redirect to printable HTML view
     if format == "pdf":

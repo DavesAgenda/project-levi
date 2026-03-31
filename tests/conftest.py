@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from textwrap import dedent
 
 import pytest
 from starlette.testclient import TestClient as _StarletteTestClient
+
+# Disable Secure cookie flag in tests (TestClient uses http://, not https://)
+os.environ.setdefault("SECURE_COOKIES", "0")
 
 from app.csv_import import load_chart_of_accounts
 from app.models import ChartOfAccounts

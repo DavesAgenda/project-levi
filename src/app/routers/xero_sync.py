@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import secrets
 from pathlib import Path
 from typing import Annotated
 
@@ -59,7 +60,7 @@ def require_api_key_or_admin(
                 status_code=500,
                 detail="SYNC_API_KEY not configured on server",
             )
-        if x_api_key != expected:
+        if not secrets.compare_digest(x_api_key, expected):
             raise HTTPException(status_code=401, detail="Invalid API key")
         return "api_key"
 

@@ -8,10 +8,19 @@ Handles the OIDC authorization code flow:
 
 from __future__ import annotations
 
-from urllib.parse import unquote
+import logging
+import os
+from urllib.parse import unquote, urlparse
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
+
+logger = logging.getLogger(__name__)
+
+
+def _secure_cookies() -> bool:
+    """Return True unless SECURE_COOKIES=0 (e.g. local dev over plain HTTP)."""
+    return os.environ.get("SECURE_COOKIES", "1") != "0"
 
 from app.services.auth import (
     auth0_settings,
@@ -60,13 +69,19 @@ async def auth_callback(
     try:
         token_data = await exchange_code(code, callback_url)
     except Exception as exc:
+        logger.error("Token exchange failed: %s", exc)
         raise HTTPException(
             status_code=500,
-            detail=f"Token exchange failed: {exc}",
+            detail="Token exchange failed. Check server logs for details.",
         ) from exc
 
     id_token = token_data.get("id_token", "")
+
+    # Validate redirect target to prevent open redirect
     target = state if state else "/"
+    parsed = urlparse(target)
+    if parsed.scheme or parsed.netloc:
+        target = "/"  # reject absolute URLs
 
     response = RedirectResponse(url=target, status_code=303)
     response.set_cookie(
@@ -74,7 +89,7 @@ async def auth_callback(
         id_token,
         httponly=True,
         samesite="lax",
-        secure=True,
+        secure=_secure_cookies(),
         path="/",
         max_age=86400,  # 24 hours
     )

@@ -11,6 +11,7 @@ How it works:
 
 from __future__ import annotations
 
+import os
 import secrets
 from typing import Callable
 
@@ -23,6 +24,11 @@ _COOKIE_NAME = "csrf_token"
 _HEADER_NAME = "x-csrf-token"
 _FORM_FIELD = "csrf_token"
 _TOKEN_BYTES = 32  # 64 hex chars
+
+
+def _secure_cookies() -> bool:
+    """Return True unless SECURE_COOKIES=0 (e.g. local dev over plain HTTP)."""
+    return os.environ.get("SECURE_COOKIES", "1") != "0"
 
 
 def _generate_token() -> str:
@@ -44,6 +50,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     _COOKIE_NAME,
                     token,
                     httponly=False,  # JS must read it
+                    secure=_secure_cookies(),
                     samesite="strict",
                     path="/",
                 )
@@ -83,6 +90,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             _COOKIE_NAME,
             new_token,
             httponly=False,
+            secure=_secure_cookies(),
             samesite="strict",
             path="/",
         )

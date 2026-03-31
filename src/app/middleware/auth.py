@@ -32,9 +32,6 @@ _PUBLIC_PREFIXES = (
     "/health",
     "/auth/",
     "/static/",
-    "/docs",
-    "/openapi.json",
-    "/redoc",
 )
 
 
