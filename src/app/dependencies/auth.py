@@ -71,3 +71,15 @@ def require_permission(permission: str) -> Callable:
         return user
 
     return _check
+
+
+def should_redact_payroll(user: User | None) -> bool:
+    """Return True when the user should NOT see individual payroll details.
+
+    Staff users (who lack ``payroll_detail`` permission) get a redacted
+    view showing only totals, headcount, and FTE.  Board and admin users
+    see the full per-person breakdown.
+    """
+    if user is None:
+        return True
+    return not user.has_permission("payroll_detail")

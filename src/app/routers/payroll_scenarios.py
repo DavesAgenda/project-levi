@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from app.dependencies.auth import require_role
+from app.dependencies.auth import require_permission, require_role
 from app.models.auth import User
 
 from app.services.payroll_scenarios import (
@@ -76,7 +76,10 @@ def _build_context(scenario: PayrollScenario) -> dict:
 # ---------------------------------------------------------------------------
 
 @router.get("", response_class=HTMLResponse)
-async def payroll_scenarios_page(request: Request):
+async def payroll_scenarios_page(
+    request: Request,
+    current_user: User = Depends(require_permission("payroll_scenarios")),
+):
     """Render the payroll scenarios page."""
     scenario = _get_scenario()
     ctx = _build_context(scenario)
@@ -224,7 +227,9 @@ async def apply_uplift_single(request: Request, staff_name: str, current_user: U
 # ---------------------------------------------------------------------------
 
 @router.get("/preview")
-async def scenario_preview():
+async def scenario_preview(
+    current_user: User = Depends(require_permission("payroll_scenarios")),
+):
     """Return scenario impact as JSON (for programmatic use)."""
     scenario = _get_scenario()
     result = compute_scenario(scenario)

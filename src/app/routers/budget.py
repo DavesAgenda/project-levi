@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from app.dependencies.auth import require_role
+from app.dependencies.auth import require_role, should_redact_payroll
 from app.models.auth import User
 
 from app.models.budget import BudgetFile, BudgetSection, BudgetStatus
@@ -380,6 +380,10 @@ async def budget_view(request: Request, year: int, edit: bool = Query(False)):
         ctx["expense_sections"],
     )
 
+    # Payroll redaction (CHA-204): staff sees single total line
+    user = getattr(request.state, "user", None)
+    redact = should_redact_payroll(user)
+
     ctx.update({
         "year": year,
         "edit_mode": edit,
@@ -387,6 +391,7 @@ async def budget_view(request: Request, year: int, edit: bool = Query(False)):
         "budget_years": budget_years,
         "is_draft": is_draft,
         "ref": ref_data,
+        "redact_payroll": redact,
     })
     return templates.TemplateResponse(request, "budget.html", ctx)
 

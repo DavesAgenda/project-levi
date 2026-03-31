@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from app.dependencies.auth import should_redact_payroll
 from app.services.payroll import compute_payroll_data
 
 APP_DIR = Path(__file__).resolve().parent.parent
@@ -53,12 +54,10 @@ async def payroll_summary(request: Request):
     """Render the payroll summary report page."""
     data = compute_payroll_data()
 
-    # Payroll detail redaction flag (CHA-204 prep):
+    # Payroll detail redaction (CHA-204):
     # admin + board see full detail; staff gets redacted
     user = getattr(request.state, "user", None)
-    redact_payroll = True  # default: redact
-    if user is not None and user.has_permission("payroll_detail"):
-        redact_payroll = False
+    redact_payroll = should_redact_payroll(user)
 
     staff_rows = [_staff_to_row(s) for s in data.staff]
     category_rows = [_category_to_row(c) for c in data.category_actuals]

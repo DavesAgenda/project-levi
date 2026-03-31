@@ -310,6 +310,25 @@
           </tr>
         </thead>
         <tbody>
+          {% if redact_payroll is defined and redact_payroll and section.key == "payroll" %}
+          {# CHA-204: Staff users see a single "Total Staffing" line instead of per-person breakdown #}
+          <tr class="border-b border-muted/50">
+            <td class="py-2 text-text-body">Total Staffing</td>
+            {% if ref %}
+            <td class="py-2 text-right font-mono text-caption text-neutral">—</td>
+            <td class="py-2 text-right font-mono text-caption text-neutral">—</td>
+            <td class="py-2 text-right text-caption text-neutral">—</td>
+            <td class="py-2 text-right text-caption text-neutral">—</td>
+            {% endif %}
+            <td class="py-2 text-right">
+              {% if section.total is not none %}
+                <span class="font-mono text-figure">${{ "{:,.0f}".format(section.total) }}</span>
+              {% else %}
+                <span class="text-caption text-neutral italic">TBD</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
           {% for item in section.line_items %}
           {% set ref_item = ref.ref_sections[section.key].line_items[item.key] if ref and section.key in ref.ref_sections and item.key in ref.ref_sections[section.key].line_items else none %}
           <tr id="line-expenses-{{ section.key }}-{{ item.key }}" class="border-b border-muted/50 hover:bg-muted/20">
@@ -377,6 +396,7 @@
             </td>
           </tr>
           {% endfor %}
+          {% endif %}
         </tbody>
         {% if section.total is not none %}
         <tfoot>

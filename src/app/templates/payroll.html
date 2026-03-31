@@ -63,7 +63,8 @@
     ) }}
   </div>
 
-  {# ── Diocese Scale Reference ── #}
+  {% if not redact_payroll %}
+  {# ── Diocese Scale Reference (visible to board/admin only) ── #}
   {% if data.diocese_scales.source %}
   <div class="bg-surface border border-muted rounded-card shadow-card p-6">
     <h2 class="text-h3 mb-3">Diocese Scale Reference</h2>
@@ -87,7 +88,7 @@
   </div>
   {% endif %}
 
-  {# ── Per-Staff Breakdown Table ── #}
+  {# ── Per-Staff Breakdown Table (visible to board/admin only) ── #}
   <div class="bg-surface border border-muted rounded-card shadow-card overflow-hidden">
     <div class="p-6 border-b border-muted">
       <h2 class="text-h2">Staff Cost Breakdown</h2>
@@ -113,7 +114,7 @@
     ) }}
   </div>
 
-  {# ── Budget vs Actuals by Payroll Category ── #}
+  {# ── Budget vs Actuals by Payroll Category (visible to board/admin only) ── #}
   {% if category_rows %}
   <div class="bg-surface border border-muted rounded-card shadow-card overflow-hidden">
     <div class="p-6 border-b border-muted">
@@ -134,6 +135,7 @@
         sort_dir="asc",
     ) }}
   </div>
+  {% endif %}
   {% endif %}
   {% endif %}
 </div>
