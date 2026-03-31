@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Verification Report — New Light Budget Tool{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="font-heading text-h1 text-text">Data Verification</h1>
+      <p class="text-caption text-neutral mt-1">Cross-check CSV imports against Xero API snapshots</p>
+    </div>
+
+    <!-- Year selector -->
+    <form method="get" action="/reports/verification" class="flex items-center gap-3">
+      <label for="year" class="text-caption font-medium text-text">Year:</label>
+      <select
+        id="year"
+        name="year"
+        class="rounded-btn border border-outline px-3 py-2 text-figure font-mono bg-surface text-text focus:ring-2 focus:ring-primary focus:border-primary"
+        onchange="this.form.submit()"
+      >
+        {% if not available_years %}
+        <option value="">No data available</option>
+        {% endif %}
+        {% for y in available_years %}
+        <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  {% if result %}
+
+  <!-- Summary cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Total accounts -->
+    <div class="bg-surface rounded-card shadow-card p-5">
+      <p class="text-caption text-neutral font-medium">Total Accounts</p>
+      <p class="text-figure-lg font-mono text-text mt-1">{{ result.total_accounts }}</p>
+    </div>
+
+    <!-- Match rate -->
+    <div class="bg-surface rounded-card shadow-card p-5">
+      <p class="text-caption text-neutral font-medium">Match Rate</p>
+      <p class="text-figure-lg font-mono mt-1 {% if result.match_percentage >= 90 %}text-green-700{% elif result.match_percentage >= 70 %}text-yellow-700{% else %}text-red-700{% endif %}">
+        {{ result.match_percentage }}%
+      </p>
+    </div>
+
+    <!-- Total discrepancy -->
+    <div class="bg-surface rounded-card shadow-card p-5">
+      <p class="text-caption text-neutral font-medium">Total Discrepancy</p>
+      <p class="text-figure-lg font-mono mt-1 {% if result.total_discrepancy <= 100 %}text-green-700{% elif result.total_discrepancy <= 1000 %}text-yellow-700{% else %}text-red-700{% endif %}">
+        ${{ "{:,.2f}".format(result.total_discrepancy) }}
+      </p>
+    </div>
+
+    <!-- Status breakdown -->
+    <div class="bg-surface rounded-card shadow-card p-5">
+      <p class="text-caption text-neutral font-medium">Breakdown</p>
+      <div class="flex flex-wrap gap-2 mt-2">
+        {% if result.matches %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-badge text-xs font-semibold bg-green-100 text-green-800">{{ result.matches|length }} match</span>
+        {% endif %}
+        {% if result.minor_variances %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-badge text-xs font-semibold bg-yellow-100 text-yellow-800">{{ result.minor_variances|length }} minor</span>
+        {% endif %}
+        {% if result.major_variances %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-badge text-xs font-semibold bg-red-100 text-red-800">{{ result.major_variances|length }} major</span>
+        {% endif %}
+        {% if result.csv_only %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-badge text-xs font-semibold bg-orange-100 text-orange-800">{{ result.csv_only|length }} CSV only</span>
+        {% endif %}
+        {% if result.snapshot_only %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-badge text-xs font-semibold bg-blue-100 text-blue-800">{{ result.snapshot_only|length }} snapshot only</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Data sources -->
+  <div class="bg-surface rounded-card shadow-card p-4 text-caption">
+    <div class="flex flex-wrap gap-6">
+      <div>
+        <span class="font-medium text-neutral">CSV Source:</span>
+        <span class="text-text">{{ result.csv_source or "No CSV data found" }}</span>
+        {% if result.has_csv_data %}
+        <span class="inline-block w-2 h-2 rounded-full bg-green-500 ml-1"></span>
+        {% else %}
+        <span class="inline-block w-2 h-2 rounded-full bg-red-500 ml-1"></span>
+        {% endif %}
+      </div>
+      <div>
+        <span class="font-medium text-neutral">Snapshot Source:</span>
+        <span class="text-text">{{ result.snapshot_source or "No snapshot data found" }}</span>
+        {% if result.has_snapshot_data %}
+        <span class="inline-block w-2 h-2 rounded-full bg-green-500 ml-1"></span>
+        {% else %}
+        <span class="inline-block w-2 h-2 rounded-full bg-red-500 ml-1"></span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if not result.has_csv_data and not result.has_snapshot_data %}
+  <!-- No data message -->
+  <div class="bg-surface rounded-card shadow-card p-8 text-center">
+    <p class="text-figure text-neutral">No CSV or snapshot data found for {{ selected_year }}.</p>
+    <p class="text-caption text-neutral mt-2">Upload historical CSVs to <code class="font-mono bg-gray-100 px-1 rounded">data/historical/</code> or pull Xero snapshots to begin verification.</p>
+  </div>
+  {% elif result.comparisons %}
+
+  <!-- Comparison table -->
+  <div class="bg-surface rounded-card shadow-card overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-outline">
+        <thead>
+          <tr class="bg-gray-50">
+            <th class="px-4 py-3 text-left text-caption font-semibold text-neutral">Account Code</th>
+            <th class="px-4 py-3 text-left text-caption font-semibold text-neutral">Account Name</th>
+            <th class="px-4 py-3 text-right text-caption font-semibold text-neutral">CSV Amount</th>
+            <th class="px-4 py-3 text-right text-caption font-semibold text-neutral">Snapshot Amount</th>
+            <th class="px-4 py-3 text-right text-caption font-semibold text-neutral">Variance</th>
+            <th class="px-4 py-3 text-center text-caption font-semibold text-neutral">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-outline">
+          {% for comp in result.comparisons %}
+          <tr class="{{ comp.css_class }} hover:brightness-95 transition-colors">
+            <td class="px-4 py-2.5 text-figure font-mono text-text whitespace-nowrap">{{ comp.account_code }}</td>
+            <td class="px-4 py-2.5 text-figure text-text">{{ comp.account_name }}</td>
+            <td class="px-4 py-2.5 text-figure font-mono text-right text-text whitespace-nowrap">
+              {% if comp.csv_amount is not none %}
+              ${{ "{:,.2f}".format(comp.csv_amount) }}
+              {% else %}
+              <span class="text-neutral">&mdash;</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2.5 text-figure font-mono text-right text-text whitespace-nowrap">
+              {% if comp.snapshot_amount is not none %}
+              ${{ "{:,.2f}".format(comp.snapshot_amount) }}
+              {% else %}
+              <span class="text-neutral">&mdash;</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2.5 text-figure font-mono text-right whitespace-nowrap {% if comp.variance > 0 %}text-green-700{% elif comp.variance < 0 %}text-red-700{% else %}text-text{% endif %}">
+              {% if comp.variance != 0 %}
+              {{ "{:+,.2f}".format(comp.variance) }}
+              {% else %}
+              $0.00
+              {% endif %}
+            </td>
+            <td class="px-4 py-2.5 text-center">
+              {% if comp.status.value == "match" %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-badge text-xs font-semibold bg-green-100 text-green-800">Match</span>
+              {% elif comp.status.value == "minor" %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-badge text-xs font-semibold bg-yellow-100 text-yellow-800">Minor</span>
+              {% elif comp.status.value == "major" %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-badge text-xs font-semibold bg-red-100 text-red-800">Major</span>
+              {% elif comp.status.value == "csv_only" %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-badge text-xs font-semibold bg-orange-100 text-orange-800">CSV Only</span>
+              {% elif comp.status.value == "snapshot_only" %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-badge text-xs font-semibold bg-blue-100 text-blue-800">Snapshot Only</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="bg-surface rounded-card shadow-card p-8 text-center">
+    <p class="text-figure text-neutral">No account comparisons available for {{ selected_year }}.</p>
+  </div>
+  {% endif %}
+
+  {% elif not available_years %}
+  <div class="bg-surface rounded-card shadow-card p-8 text-center">
+    <p class="text-figure text-neutral">No historical data or snapshots found for verification.</p>
+    <p class="text-caption text-neutral mt-2">Upload CSV files to <code class="font-mono bg-gray-100 px-1 rounded">data/historical/</code> or pull Xero API snapshots first.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

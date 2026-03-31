@@ -106,6 +106,9 @@
           <a href="/reports/properties" class="text-text hover:text-primary font-medium transition-colors">Properties</a>
           <a href="/reports/tracking-matrix" class="text-text hover:text-primary font-medium transition-colors">Tracking</a>
           <a href="/budget/2026" class="text-text hover:text-primary font-medium transition-colors">Budget</a>
+          {% if user.role in ["admin", "board"] %}
+          <a href="/reports/verification" class="text-text hover:text-primary font-medium transition-colors">Verify</a>
+          {% endif %}
           <!-- User info & logout -->
           <div class="flex items-center space-x-3 ml-4 pl-4 border-l border-outline">
             <span class="text-caption text-text font-medium">{{ user.name or user.email }}</span>

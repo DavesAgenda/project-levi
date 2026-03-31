@@ -14,12 +14,14 @@ services:
       - AUTH0_DOMAIN_FILE=/run/secrets/auth0_domain
       - AUTH0_CLIENT_ID_FILE=/run/secrets/auth0_client_id
       - AUTH0_CLIENT_SECRET_FILE=/run/secrets/auth0_client_secret
+      - SYNC_API_KEY_FILE=/run/secrets/sync_api_key
     secrets:
       - xero_client_id
       - xero_client_secret
       - auth0_domain
       - auth0_client_id
       - auth0_client_secret
+      - sync_api_key
     networks:
       - church-net
     mem_limit: 512m
@@ -46,3 +48,5 @@ secrets:
     file: ./secrets/auth0_client_id.txt
   auth0_client_secret:
     file: ./secrets/auth0_client_secret.txt
+  sync_api_key:
+    file: ./secrets/sync_api_key.txt

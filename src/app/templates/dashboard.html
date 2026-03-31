@@ -25,6 +25,9 @@
       Import Data
     </a>
     {% endif %}
+    {% if request.state.user and request.state.user.is_admin %}
+    {% include "partials/sync_button.html" %}
+    {% endif %}
   </div>
 
   {% if not data.has_data %}

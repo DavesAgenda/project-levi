@@ -25,6 +25,8 @@ from app.routers.budget_workflow import router as budget_workflow_router
 from app.routers.payroll_scenarios import router as payroll_scenarios_router
 from app.routers.property_scenarios import router as property_scenarios_router
 from app.routers.xero_reports import router as xero_reports_router
+from app.routers.xero_sync import router as xero_sync_router
+from app.routers.verification import router as verification_router
 
 APP_DIR = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR / "static"
@@ -56,6 +58,8 @@ app.include_router(budget_comparison_router)
 app.include_router(budget_workflow_router)
 app.include_router(budget_router)
 app.include_router(xero_reports_router)
+app.include_router(xero_sync_router)
+app.include_router(verification_router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
