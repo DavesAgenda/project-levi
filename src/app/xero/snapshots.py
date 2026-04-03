@@ -7,11 +7,20 @@ timestamped JSON file that gets committed to the repo for audit trail.
 from __future__ import annotations
 
 import json
+import logging
+import re
 from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from app.models import FinancialSnapshot, SnapshotRow
+from app.xero.parser import parse_report
+
+logger = logging.getLogger(__name__)
+
 SNAPSHOTS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "data" / "snapshots"
+CONFIG_DIR = SNAPSHOTS_DIR.parent.parent / "config"
 
 
 def _ensure_dir(directory: Path) -> None:
@@ -112,3 +121,74 @@ def save_balance_sheet_snapshot(data: dict[str, Any], as_of_date: str) -> Path:
 def save_tracking_categories_snapshot(data: dict[str, Any]) -> Path:
     """Save a Tracking Categories snapshot."""
     return save_snapshot(data, "tracking_categories")
+
+
+# ---------------------------------------------------------------------------
+# Snapshot → FinancialSnapshot converter (Xero raw → flat model)
+# ---------------------------------------------------------------------------
+
+def _normalise(name: str) -> str:
+    """Lowercase, strip non-alphanumeric for fuzzy name matching."""
+    return re.sub(r"[^a-z0-9]", "", name.lower())
+
+
+def _build_name_lookup() -> dict[str, str]:
+    """Build {normalised_account_name: account_code} from chart_of_accounts.yaml."""
+    import yaml
+    from app.models import ChartOfAccounts
+
+    chart_path = CONFIG_DIR / "chart_of_accounts.yaml"
+    if not chart_path.exists():
+        return {}
+    with open(chart_path, "r", encoding="utf-8") as f:
+        raw = yaml.safe_load(f) or {}
+    chart = ChartOfAccounts(**raw)
+
+    name_map: dict[str, str] = {}
+    for section_field in [chart.income, chart.expenses]:
+        for cat in section_field.values():
+            for acct in cat.accounts + cat.legacy_accounts + cat.property_costs:
+                name_map[_normalise(acct.name)] = acct.code
+    return name_map
+
+
+def xero_snapshot_to_financial(raw: dict[str, Any]) -> FinancialSnapshot | None:
+    """Convert a Xero-wrapped snapshot dict to a FinancialSnapshot.
+
+    Handles the {snapshot_metadata, response} envelope produced by save_snapshot().
+    Returns None if the data cannot be parsed.
+    """
+    metadata = raw.get("snapshot_metadata")
+    response = raw.get("response")
+    if not metadata or not response:
+        return None
+
+    try:
+        parsed = parse_report(response)
+    except (ValueError, KeyError):
+        logger.warning("Failed to parse Xero report from snapshot")
+        return None
+
+    name_lookup = _build_name_lookup()
+
+    rows: list[SnapshotRow] = []
+    for section in parsed.sections:
+        for row in section.rows:
+            amount = float(next(iter(row.values.values()), Decimal("0")))
+            code = name_lookup.get(_normalise(row.account_name), "")
+            rows.append(SnapshotRow(
+                account_code=code,
+                account_name=row.account_name,
+                amount=amount,
+            ))
+
+    from_date = metadata.get("from_date") or metadata.get("to_date", "")
+    to_date = metadata.get("to_date", "")
+
+    return FinancialSnapshot(
+        report_date=parsed.report_date or to_date,
+        from_date=from_date,
+        to_date=to_date,
+        source="xero_api",
+        rows=rows,
+    )

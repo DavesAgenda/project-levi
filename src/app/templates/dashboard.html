@@ -17,16 +17,43 @@
       {% if data.has_data %}
       <p class="text-caption mt-1" style="opacity: 0.7;">
         Period: {{ data.snapshot_period }} &middot; As of {{ data.snapshot_date }}
+        {% if view_mode == "ytd" %} (Year to Date){% else %} (Full Year){% endif %}
       </p>
       {% endif %}
     </div>
+    {% if data.has_data %}
+    <div class="flex items-center gap-2">
+      <a href="?view_mode=ytd&source={{ source }}"
+         class="px-3 py-1.5 rounded-btn text-xs font-semibold transition-colors min-h-btn
+                {% if view_mode == 'ytd' %}text-white{% else %}text-primary border border-primary hover:bg-primary hover:text-white{% endif %}"
+         {% if view_mode == 'ytd' %}style="background-color: var(--primary);"{% endif %}>
+        YTD
+      </a>
+      <a href="?view_mode=full_year&source={{ source }}"
+         class="px-3 py-1.5 rounded-btn text-xs font-semibold transition-colors min-h-btn
+                {% if view_mode == 'full_year' %}text-white{% else %}text-primary border border-primary hover:bg-primary hover:text-white{% endif %}"
+         {% if view_mode == 'full_year' %}style="background-color: var(--primary);"{% endif %}>
+        Full Year
+      </a>
+    </div>
+    {% endif %}
     {% if not data.has_data %}
     <a href="/api/csv/upload" class="inline-flex items-center bg-primary text-white font-semibold rounded-btn min-h-btn px-6 py-2 hover:bg-primary-hover transition-colors">
       Import Data
     </a>
     {% endif %}
     {% if request.state.user and request.state.user.is_admin %}
-    {% include "partials/sync_button.html" %}
+      {% if xero_connected %}
+      {% include "partials/sync_button.html" %}
+      {% else %}
+      <a href="/auth/xero/login"
+         class="inline-flex items-center gap-2 border-2 border-primary text-primary font-semibold rounded-btn min-h-btn px-5 py-2 hover:bg-primary hover:text-white transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+        </svg>
+        Connect Xero
+      </a>
+      {% endif %}
     {% endif %}
   </div>
 
@@ -43,10 +70,16 @@
         Import a Xero P&L CSV export or connect your Xero account to see budget vs actual comparisons,
         variance analysis, and financial charts.
       </p>
-      <a href="/api/csv/upload"
-         class="inline-flex items-center bg-primary text-white font-semibold rounded-btn min-h-btn px-6 py-2 hover:bg-primary-hover transition-colors">
-        Import CSV Data
-      </a>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <a href="/api/csv/upload"
+           class="inline-flex items-center bg-primary text-white font-semibold rounded-btn min-h-btn px-6 py-2 hover:bg-primary-hover transition-colors">
+          Import CSV Data
+        </a>
+        <a href="/auth/xero/login"
+           class="inline-flex items-center border-2 border-primary text-primary font-semibold rounded-btn min-h-btn px-6 py-2 hover:bg-primary hover:text-white transition-colors">
+          Connect Xero
+        </a>
+      </div>
     </div>
   </div>
 
@@ -149,6 +182,7 @@ const chartColors = {
   muted: getToken('--muted'),
   text: getToken('--text'),
   surface: getToken('--surface'),
+  outline: getToken('--outline'),
 };
 
 Chart.defaults.color = chartColors.text;
@@ -179,8 +213,8 @@ new Chart(document.getElementById('budgetVsActualsChart'), {
   data: {
     labels: expenseLabels,
     datasets: [
-      { label: 'Budget', data: expenseBudgets, backgroundColor: hexToRgba(chartColors.primary, 0.6), borderColor: chartColors.primary, borderWidth: 1 },
-      { label: 'Actual', data: expenseActuals, backgroundColor: hexToRgba(chartColors.accent, 0.6), borderColor: chartColors.accent, borderWidth: 1 }
+      { label: 'Budget', data: expenseBudgets, backgroundColor: hexToRgba(chartColors.outline, 0.4), borderColor: chartColors.outline, borderWidth: 1 },
+      { label: 'Actual', data: expenseActuals, backgroundColor: hexToRgba(chartColors.primary, 0.7), borderColor: chartColors.primary, borderWidth: 1 }
     ]
   },
   options: {
@@ -238,8 +272,8 @@ new Chart(document.getElementById('incomeChart'), {
   data: {
     labels: incomeLabels,
     datasets: [
-      { label: 'Budget', data: incomeBudgets, backgroundColor: hexToRgba(chartColors.primary, 0.6), borderColor: chartColors.primary, borderWidth: 1 },
-      { label: 'Actual', data: incomeActuals, backgroundColor: hexToRgba(chartColors.accent, 0.6), borderColor: chartColors.accent, borderWidth: 1 }
+      { label: 'Budget', data: incomeBudgets, backgroundColor: hexToRgba(chartColors.outline, 0.4), borderColor: chartColors.outline, borderWidth: 1 },
+      { label: 'Actual', data: incomeActuals, backgroundColor: hexToRgba(chartColors.primary, 0.7), borderColor: chartColors.primary, borderWidth: 1 }
     ]
   },
   options: {

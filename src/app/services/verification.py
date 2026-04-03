@@ -24,6 +24,7 @@ from app.models.verification import (
     VerificationResult,
 )
 from app.services.dashboard import CHART_PATH, SNAPSHOTS_DIR
+from app.xero.snapshots import xero_snapshot_to_financial
 
 # Historical CSV directory — parallel to data/snapshots/
 HISTORICAL_DIR = Path(__file__).resolve().parent.parent.parent.parent / "data" / "historical"
@@ -110,23 +111,23 @@ def _load_snapshot_actuals(
     actuals: dict[str, float] = {}
     sources: list[str] = []
 
-    for json_path in sorted(search_dir.glob("*.json")):
+    for json_path in sorted(search_dir.glob("pl_*.json")):
         try:
             raw = json.loads(json_path.read_text(encoding="utf-8"))
 
             # Handle both wrapper and direct formats
-            snapshot_data = None
+            snapshot = None
             if "report_date" in raw:
-                snapshot_data = raw
-            elif "response" in raw and isinstance(raw["response"], dict):
-                resp = raw["response"]
+                snapshot = FinancialSnapshot(**raw)
+            elif "snapshot_metadata" in raw:
+                resp = raw.get("response", {})
                 if "report_date" in resp:
-                    snapshot_data = resp
+                    snapshot = FinancialSnapshot(**resp)
+                else:
+                    snapshot = xero_snapshot_to_financial(raw)
 
-            if snapshot_data is None:
+            if snapshot is None:
                 continue
-
-            snapshot = FinancialSnapshot(**snapshot_data)
 
             # Check if this snapshot covers the requested year
             if not (snapshot.from_date.startswith(year_str)
@@ -283,10 +284,12 @@ def get_available_years(
                 snapshot_data = None
                 if "report_date" in raw:
                     snapshot_data = raw
-                elif "response" in raw and isinstance(raw["response"], dict):
-                    resp = raw["response"]
-                    if "report_date" in resp:
-                        snapshot_data = resp
+                elif "snapshot_metadata" in raw:
+                    meta = raw["snapshot_metadata"]
+                    snapshot_data = {
+                        "from_date": meta.get("from_date", ""),
+                        "to_date": meta.get("to_date", ""),
+                    }
                 if snapshot_data:
                     for key in ("from_date", "to_date"):
                         val = snapshot_data.get(key, "")

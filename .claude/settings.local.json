@@ -12,7 +12,21 @@
       "Bash(grep -i \"tony\" \"/c/Users/tinmu/OneDrive - Valid Agenda Pty Ltd/Antigravity/Project_Lois/.agent/skills/\"*\"/SKILL.md\")",
       "mcp__claude_ai_Linear__save_project",
       "mcp__claude_ai_Linear__create_issue_label",
-      "mcp__claude_ai_Linear__get_milestone"
+      "mcp__claude_ai_Linear__get_milestone",
+      "Bash(python -m pytest tests/test_csrf.py -v)",
+      "Bash(pip install:*)",
+      "Bash(py -3.11 -m pip install authlib pytest-asyncio)",
+      "Bash(\"c:/Users/tinmu/dev/project_levi/.venv/Scripts/python.exe\" -m pytest tests/test_csrf.py -v)",
+      "Bash(py -V:3.14 -c \"import sys; print\\(sys.executable\\)\")",
+      "Bash(\"/c/Users/tinmu/AppData/Local/Programs/Python/Python314/python.exe\" -m pip install authlib pytest-asyncio)",
+      "Bash(\"/c/Users/tinmu/AppData/Local/Programs/Python/Python314/python.exe\" -c \"import pytest_asyncio\")",
+      "Bash(\"c:/Users/tinmu/dev/project_levi/.venv/Scripts/python.exe\" -m pytest tests/ -v)",
+      "Bash(\"/c/Users/tinmu/AppData/Local/Programs/Python/Python314/python.exe\" -m pytest tests/test_auth_service.py -v)",
+      "Bash(\"/c/Users/tinmu/AppData/Local/Programs/Python/Python314/python.exe\" -m pytest tests/ -v --tb=short)",
+      "Bash(\"/c/Users/tinmu/AppData/Local/Programs/Python/Python314/python.exe\" -m pip install -e \".[dev]\")",
+      "Bash(\"/c/Users/tinmu/AppData/Local/Programs/Python/Python314/python.exe\" -m pytest tests/ --tb=short)",
+      "Bash(py -3 -c ':*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/)"
     ]
   }
 }

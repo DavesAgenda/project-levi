@@ -217,7 +217,7 @@ class TestFindLatestSnapshot:
                 {"account_code": "10001", "account_name": "Offering EFT", "amount": 1000.0},
             ],
         }
-        (tmp_path / "test.json").write_text(json.dumps(snapshot_data))
+        (tmp_path / "pl_test.json").write_text(json.dumps(snapshot_data))
         result = find_latest_snapshot(tmp_path)
         assert result is not None
         assert result.report_date == "2026-03-31"
@@ -235,7 +235,7 @@ class TestFindLatestSnapshot:
                 "rows": [],
             },
         }
-        (tmp_path / "wrapped.json").write_text(json.dumps(wrapped))
+        (tmp_path / "pl_wrapped.json").write_text(json.dumps(wrapped))
         result = find_latest_snapshot(tmp_path)
         assert result is not None
         assert result.source == "xero_api"

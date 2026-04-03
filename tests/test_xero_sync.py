@@ -245,7 +245,7 @@ class TestSyncMonthly:
 class TestSyncNow:
     @pytest.mark.asyncio
     async def test_success(self, tmp_path: Path, monkeypatch):
-        """Manual sync fetches YTD P&L + current BS."""
+        """Manual sync fetches monthly P&L snapshots + current BS + tracking categories."""
         snapshot_dir = tmp_path / "snapshots"
         log_dir = tmp_path / "sync"
         monkeypatch.setattr("app.xero.snapshots.SNAPSHOTS_DIR", snapshot_dir)
@@ -254,18 +254,26 @@ class TestSyncNow:
 
         mock_pl = AsyncMock(return_value=MOCK_PL_RESPONSE)
         mock_bs = AsyncMock(return_value=MOCK_BS_RESPONSE)
+        mock_tc = AsyncMock(return_value={"TrackingCategories": []})
 
         with patch("app.services.sync.fetch_profit_and_loss", mock_pl), \
-             patch("app.services.sync.fetch_balance_sheet", mock_bs):
+             patch("app.services.sync.fetch_balance_sheet", mock_bs), \
+             patch("app.services.sync.fetch_tracking_categories", mock_tc):
             result = await sync_now(today=date(2026, 4, 3))
 
         assert result["status"] == "ok"
-        assert result["period"] == "2026-01-01 to 2026-04-03"
-        assert len(result["snapshots"]) == 2
+        assert result["period"] == "2026-01 to 2026-04"
+        # 4 monthly P&L (Jan, Feb, Mar, Apr) + 1 BS + 1 tracking categories = 6 snapshots
+        assert len(result["snapshots"]) == 6
 
-        # YTD range
-        mock_pl.assert_called_once_with("2026-01-01", "2026-04-03")
+        # Monthly P&L calls: Jan, Feb, Mar complete months + Apr partial
+        assert mock_pl.call_count == 4
+        mock_pl.assert_any_call("2026-01-01", "2026-01-31")
+        mock_pl.assert_any_call("2026-02-01", "2026-02-28")
+        mock_pl.assert_any_call("2026-03-01", "2026-03-31")
+        mock_pl.assert_any_call("2026-04-01", "2026-04-03")
         mock_bs.assert_called_once_with("2026-04-03")
+        mock_tc.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_sync_log_written(self, tmp_path: Path, monkeypatch):
@@ -279,9 +287,11 @@ class TestSyncNow:
 
         mock_pl = AsyncMock(return_value=MOCK_PL_RESPONSE)
         mock_bs = AsyncMock(return_value=MOCK_BS_RESPONSE)
+        mock_tc = AsyncMock(return_value={"TrackingCategories": []})
 
         with patch("app.services.sync.fetch_profit_and_loss", mock_pl), \
-             patch("app.services.sync.fetch_balance_sheet", mock_bs):
+             patch("app.services.sync.fetch_balance_sheet", mock_bs), \
+             patch("app.services.sync.fetch_tracking_categories", mock_tc):
             await sync_now(today=date(2026, 4, 3))
 
         entries = json.loads(log_file.read_text(encoding="utf-8"))
@@ -383,9 +393,11 @@ class TestSyncNowEndpoint:
 
         mock_pl = AsyncMock(return_value=MOCK_PL_RESPONSE)
         mock_bs = AsyncMock(return_value=MOCK_BS_RESPONSE)
+        mock_tc = AsyncMock(return_value={"TrackingCategories": []})
 
         with patch("app.services.sync.fetch_profit_and_loss", mock_pl), \
-             patch("app.services.sync.fetch_balance_sheet", mock_bs):
+             patch("app.services.sync.fetch_balance_sheet", mock_bs), \
+             patch("app.services.sync.fetch_tracking_categories", mock_tc):
             resp = client.post("/api/xero/sync-now")
 
         assert resp.status_code == 200
@@ -420,15 +432,18 @@ class TestSyncNowEndpoint:
 
         mock_pl = AsyncMock(side_effect=RuntimeError("Token expired"))
         mock_bs = AsyncMock(side_effect=RuntimeError("Token expired"))
+        mock_tc = AsyncMock(side_effect=RuntimeError("Token expired"))
 
         with patch("app.services.sync.fetch_profit_and_loss", mock_pl), \
-             patch("app.services.sync.fetch_balance_sheet", mock_bs):
+             patch("app.services.sync.fetch_balance_sheet", mock_bs), \
+             patch("app.services.sync.fetch_tracking_categories", mock_tc):
             resp = client.post("/api/xero/sync-now")
 
         assert resp.status_code == 200  # Errors returned in body, not as HTTP error
         data = resp.json()
         assert data["status"] == "error"
-        assert len(data["errors"]) == 2
+        # Monthly P&L errors (one per month of current year) + 1 BS error
+        assert len(data["errors"]) >= 2
 
     def test_api_key_not_accepted(self, monkeypatch):
         """sync-now requires admin session — API key alone is not accepted."""

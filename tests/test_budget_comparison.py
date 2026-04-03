@@ -102,7 +102,7 @@ def comparison_dirs(tmp_path: Path):
             SnapshotRow(account_code="44601", account_name="Repairs", amount=7500.0),
         ],
     )
-    (snapshots_dir / "2026_annual.json").write_text(
+    (snapshots_dir / "pl_2026_annual.json").write_text(
         json.dumps(snap_2026.model_dump(), default=str), encoding="utf-8"
     )
 
@@ -119,7 +119,7 @@ def comparison_dirs(tmp_path: Path):
             SnapshotRow(account_code="44601", account_name="Repairs", amount=9000.0),
         ],
     )
-    (snapshots_dir / "2025_annual.json").write_text(
+    (snapshots_dir / "pl_2025_annual.json").write_text(
         json.dumps(snap_2025.model_dump(), default=str), encoding="utf-8"
     )
 

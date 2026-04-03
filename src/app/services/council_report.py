@@ -13,6 +13,7 @@ from pathlib import Path
 
 from app.csv_import import build_account_lookup, load_chart_of_accounts
 from app.models import ChartOfAccounts, FinancialSnapshot
+from app.xero.snapshots import xero_snapshot_to_financial
 from app.services.dashboard import CHART_PATH, SNAPSHOTS_DIR
 
 
@@ -133,13 +134,19 @@ def load_all_snapshots(
 
     snapshots: list[FinancialSnapshot] = []
 
-    for path in snap_dir.glob("*.json"):
+    for path in snap_dir.glob("pl_*.json"):
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
             if "report_date" in raw:
                 snapshots.append(FinancialSnapshot(**raw))
-            elif "response" in raw and "report_date" in raw.get("response", {}):
-                snapshots.append(FinancialSnapshot(**raw["response"]))
+            elif "snapshot_metadata" in raw:
+                resp = raw.get("response", {})
+                if "report_date" in resp:
+                    snapshots.append(FinancialSnapshot(**resp))
+                else:
+                    snap = xero_snapshot_to_financial(raw)
+                    if snap:
+                        snapshots.append(snap)
         except (json.JSONDecodeError, KeyError, TypeError):
             continue
 

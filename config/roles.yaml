@@ -9,7 +9,7 @@
 
 roles:
   admin:
-    emails: []  # e.g. treasurer@newlightanglican.org
+    emails: [treasurer@newlight.au]  # e.g. treasurer@newlightanglican.org
     permissions:
       - read
       - write

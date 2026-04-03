@@ -9,6 +9,7 @@ Handles:
 
 from __future__ import annotations
 
+import calendar
 import json
 import logging
 import time
@@ -16,8 +17,16 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from app.xero.client import fetch_balance_sheet, fetch_profit_and_loss
-from app.xero.snapshots import save_balance_sheet_snapshot, save_pl_snapshot
+from app.xero.client import (
+    fetch_balance_sheet,
+    fetch_profit_and_loss,
+    fetch_tracking_categories,
+)
+from app.xero.snapshots import (
+    save_balance_sheet_snapshot,
+    save_pl_snapshot,
+    save_tracking_categories_snapshot,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -142,38 +151,45 @@ async def sync_monthly(today: date | None = None) -> dict[str, Any]:
 
 
 async def sync_now(today: date | None = None) -> dict[str, Any]:
-    """Manual live sync: fetch YTD P&L and current Balance Sheet.
+    """Manual live sync: fetch each month of the current year individually.
 
-    Saves/overwrites the current month's snapshot.
+    Pulls a separate P&L snapshot for each completed month, plus the partial
+    current month.  Also fetches the current Balance Sheet.
 
     Returns:
         {status, period, snapshots: [...], errors: []}
     """
     start_time = time.monotonic()
     today = today or date.today()
-    ytd_start, ytd_end = current_ytd_range(today)
-
-    from_date = ytd_start.isoformat()
-    to_date = ytd_end.isoformat()
 
     snapshots: list[str] = []
     errors: list[str] = []
 
-    # Fetch YTD P&L
-    try:
-        pl_data = await fetch_profit_and_loss(from_date, to_date)
-        path = save_pl_snapshot(pl_data, from_date, to_date)
-        snapshots.append(str(path.name))
-        logger.info("Manual sync: saved YTD P&L snapshot %s", path.name)
-    except Exception as exc:
-        msg = f"P&L fetch failed: {exc}"
-        logger.error("Manual sync: %s", msg)
-        errors.append(msg)
+    # Fetch each month of the current year individually
+    for month in range(1, today.month + 1):
+        first_day = date(today.year, month, 1)
+        if month == today.month:
+            last_day = today  # partial current month
+        else:
+            last_day = date(today.year, month, calendar.monthrange(today.year, month)[1])
+
+        from_date = first_day.isoformat()
+        to_date = last_day.isoformat()
+
+        try:
+            pl_data = await fetch_profit_and_loss(from_date, to_date)
+            path = save_pl_snapshot(pl_data, from_date, to_date)
+            snapshots.append(str(path.name))
+            logger.info("Manual sync: saved P&L snapshot %s", path.name)
+        except Exception as exc:
+            msg = f"P&L fetch failed for {from_date}: {exc}"
+            logger.error("Manual sync: %s", msg)
+            errors.append(msg)
 
     # Fetch current Balance Sheet
     try:
-        bs_data = await fetch_balance_sheet(to_date)
-        path = save_balance_sheet_snapshot(bs_data, to_date)
+        bs_data = await fetch_balance_sheet(today.isoformat())
+        path = save_balance_sheet_snapshot(bs_data, today.isoformat())
         snapshots.append(str(path.name))
         logger.info("Manual sync: saved Balance Sheet snapshot %s", path.name)
     except Exception as exc:
@@ -181,10 +197,34 @@ async def sync_now(today: date | None = None) -> dict[str, Any]:
         logger.error("Manual sync: %s", msg)
         errors.append(msg)
 
+    # Fetch tracking categories + YTD tracking P&L breakdown
+    try:
+        tc_data = await fetch_tracking_categories()
+        path = save_tracking_categories_snapshot(tc_data)
+        snapshots.append(str(path.name))
+        logger.info("Manual sync: saved tracking categories %s", path.name)
+
+        # Fetch YTD tracking P&L for each category
+        ytd_start = date(today.year, 1, 1).isoformat()
+        ytd_end = today.isoformat()
+        for cat in tc_data.get("TrackingCategories", []):
+            cat_id = cat.get("TrackingCategoryID")
+            if cat_id:
+                pl_data = await fetch_profit_and_loss(
+                    ytd_start, ytd_end, tracking_category_id=cat_id,
+                )
+                path = save_pl_snapshot(pl_data, ytd_start, ytd_end, tracking=True)
+                snapshots.append(str(path.name))
+                logger.info("Manual sync: saved tracking P&L %s", path.name)
+    except Exception as exc:
+        msg = f"Tracking sync failed: {exc}"
+        logger.error("Manual sync: %s", msg)
+        errors.append(msg)
+
     duration = round(time.monotonic() - start_time, 2)
     status = "ok" if not errors else ("partial" if snapshots else "error")
 
-    period_label = f"{from_date} to {to_date}"
+    period_label = f"{today.year}-01 to {today.year}-{today.month:02d}"
 
     result = {
         "status": status,
@@ -199,6 +239,94 @@ async def sync_now(today: date | None = None) -> dict[str, Any]:
         "type": "manual",
         "status": status,
         "period": period_label,
+        "duration_seconds": duration,
+        "snapshots": snapshots,
+        "errors": errors,
+    })
+
+    return result
+
+
+async def sync_historical(
+    from_year: int,
+    to_year: int,
+    today: date | None = None,
+) -> dict[str, Any]:
+    """Backfill monthly P&L snapshots for a range of years.
+
+    Fetches one P&L snapshot per month from Jan of from_year through
+    the last completed month of to_year (or the partial current month
+    if to_year is the current year).
+
+    Returns:
+        {status, range, months_synced, snapshots: [...], errors: [...],
+         duration_seconds}
+    """
+    start_time = time.monotonic()
+    today = today or date.today()
+
+    snapshots: list[str] = []
+    errors: list[str] = []
+    months_synced = 0
+
+    for year in range(from_year, to_year + 1):
+        last_month = 12
+        if year == today.year:
+            last_month = today.month
+
+        for month in range(1, last_month + 1):
+            first_day = date(year, month, 1)
+
+            if year == today.year and month == today.month:
+                last_day = today  # partial current month
+            else:
+                last_day = date(year, month, calendar.monthrange(year, month)[1])
+
+            from_date = first_day.isoformat()
+            to_date = last_day.isoformat()
+
+            try:
+                pl_data = await fetch_profit_and_loss(from_date, to_date)
+                path = save_pl_snapshot(pl_data, from_date, to_date)
+                snapshots.append(str(path.name))
+                months_synced += 1
+                logger.info("Historical sync: saved %s", path.name)
+            except Exception as exc:
+                msg = f"P&L fetch failed for {from_date}: {exc}"
+                logger.error("Historical sync: %s", msg)
+                errors.append(msg)
+
+    # Fetch balance sheet as-of today for the latest position
+    try:
+        bs_data = await fetch_balance_sheet(today.isoformat())
+        path = save_balance_sheet_snapshot(bs_data, today.isoformat())
+        snapshots.append(str(path.name))
+        logger.info("Historical sync: saved Balance Sheet %s", path.name)
+    except Exception as exc:
+        msg = f"Balance Sheet fetch failed: {exc}"
+        logger.error("Historical sync: %s", msg)
+        errors.append(msg)
+
+    duration = round(time.monotonic() - start_time, 2)
+    status = "ok" if not errors else ("partial" if snapshots else "error")
+
+    range_label = f"{from_year} to {to_year}"
+
+    result = {
+        "status": status,
+        "range": range_label,
+        "months_synced": months_synced,
+        "snapshots": snapshots,
+        "errors": errors,
+        "duration_seconds": duration,
+    }
+
+    _append_sync_log({
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "type": "historical",
+        "status": status,
+        "range": range_label,
+        "months_synced": months_synced,
         "duration_seconds": duration,
         "snapshots": snapshots,
         "errors": errors,

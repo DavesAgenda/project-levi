@@ -251,7 +251,7 @@ class TestComputeTrendData:
             ("10001", "Offering EFT", 220000.0),
             ("20060", "Example Street 6 Rent", 32000.0),
         ])
-        (snap_dir / "2023.json").write_text(
+        (snap_dir / "pl_2023.json").write_text(
             snapshot.model_dump_json(), encoding="utf-8",
         )
 
@@ -281,7 +281,7 @@ class TestComputeTrendData:
             ("10001", "Offering EFT", 220000.0),
             ("20060", "Example Street 6 Rent", 32000.0),
         ])
-        (snap_dir / "2023.json").write_text(
+        (snap_dir / "pl_2023.json").write_text(
             snapshot.model_dump_json(), encoding="utf-8",
         )
 
@@ -313,10 +313,10 @@ class TestComputeTrendData:
             ("10001", "Offering EFT", 250000.0),
             ("20060", "Example Street 6 Rent", 35000.0),
         ])
-        (snap_dir / "2022.json").write_text(
+        (snap_dir / "pl_2022.json").write_text(
             snap_2022.model_dump_json(), encoding="utf-8",
         )
-        (snap_dir / "2024.json").write_text(
+        (snap_dir / "pl_2024.json").write_text(
             snap_2024.model_dump_json(), encoding="utf-8",
         )
 
@@ -395,7 +395,7 @@ class TestLoadAllSnapshotsAllYears:
         snapshot = _make_snapshot("2023-01-01", "2023-12-31", [
             ("10001", "Offering EFT", 999999.0),  # distinctive value
         ])
-        (snap_dir / "2023.json").write_text(
+        (snap_dir / "pl_2023.json").write_text(
             snapshot.model_dump_json(), encoding="utf-8",
         )
 

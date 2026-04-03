@@ -193,8 +193,8 @@ class TestLoadAllSnapshots:
             "rows": [],
         }
         # Write in reverse order to verify sorting
-        (tmp_path / "feb.json").write_text(json.dumps(snap2))
-        (tmp_path / "jan.json").write_text(json.dumps(snap1))
+        (tmp_path / "pl_feb.json").write_text(json.dumps(snap2))
+        (tmp_path / "pl_jan.json").write_text(json.dumps(snap1))
 
         result = load_all_snapshots(tmp_path)
         assert len(result) == 2
@@ -218,7 +218,7 @@ class TestLoadAllSnapshots:
                 "rows": [],
             },
         }
-        (tmp_path / "wrapped.json").write_text(json.dumps(wrapped))
+        (tmp_path / "pl_wrapped.json").write_text(json.dumps(wrapped))
         result = load_all_snapshots(tmp_path)
         assert len(result) == 1
         assert result[0].source == "xero_api"
@@ -241,7 +241,7 @@ class TestComputeCouncilReport:
 
     def test_with_q1_snapshot(self, chart, tmp_path, q1_snapshot, budget_data):
         # Write snapshot to disk
-        snap_path = tmp_path / "q1.json"
+        snap_path = tmp_path / "pl_q1.json"
         snap_path.write_text(q1_snapshot.model_dump_json())
 
         data = compute_council_report(
@@ -254,7 +254,7 @@ class TestComputeCouncilReport:
         assert data.month_labels == ["Jan", "Feb", "Mar"]
 
     def test_income_rows_present(self, chart, tmp_path, q1_snapshot, budget_data):
-        (tmp_path / "q1.json").write_text(q1_snapshot.model_dump_json())
+        (tmp_path / "pl_q1.json").write_text(q1_snapshot.model_dump_json())
 
         data = compute_council_report(
             year=2026, end_month=3, chart=chart,
@@ -269,7 +269,7 @@ class TestComputeCouncilReport:
         assert offertory.ytd_actual == pytest.approx(63700.0, abs=0.02)  # 62500 + 1200
 
     def test_expense_rows_present(self, chart, tmp_path, q1_snapshot, budget_data):
-        (tmp_path / "q1.json").write_text(q1_snapshot.model_dump_json())
+        (tmp_path / "pl_q1.json").write_text(q1_snapshot.model_dump_json())
 
         data = compute_council_report(
             year=2026, end_month=3, chart=chart,
@@ -279,7 +279,7 @@ class TestComputeCouncilReport:
         assert all(r.section == "expenses" for r in data.expense_rows)
 
     def test_ytd_budget_prorated(self, chart, tmp_path, q1_snapshot, budget_data):
-        (tmp_path / "q1.json").write_text(q1_snapshot.model_dump_json())
+        (tmp_path / "pl_q1.json").write_text(q1_snapshot.model_dump_json())
 
         data = compute_council_report(
             year=2026, end_month=3, chart=chart,
@@ -291,7 +291,7 @@ class TestComputeCouncilReport:
         assert offertory.ytd_budget == 68750.0
 
     def test_variance_calculations(self, chart, tmp_path, q1_snapshot, budget_data):
-        (tmp_path / "q1.json").write_text(q1_snapshot.model_dump_json())
+        (tmp_path / "pl_q1.json").write_text(q1_snapshot.model_dump_json())
 
         data = compute_council_report(
             year=2026, end_month=3, chart=chart,
@@ -304,7 +304,7 @@ class TestComputeCouncilReport:
         assert offertory.variance_pct is not None
 
     def test_section_summaries(self, chart, tmp_path, q1_snapshot, budget_data):
-        (tmp_path / "q1.json").write_text(q1_snapshot.model_dump_json())
+        (tmp_path / "pl_q1.json").write_text(q1_snapshot.model_dump_json())
 
         data = compute_council_report(
             year=2026, end_month=3, chart=chart,
@@ -319,7 +319,7 @@ class TestComputeCouncilReport:
         assert data.expense_summary.ytd_actual > 0
 
     def test_net_position(self, chart, tmp_path, q1_snapshot, budget_data):
-        (tmp_path / "q1.json").write_text(q1_snapshot.model_dump_json())
+        (tmp_path / "pl_q1.json").write_text(q1_snapshot.model_dump_json())
 
         data = compute_council_report(
             year=2026, end_month=3, chart=chart,
@@ -329,7 +329,7 @@ class TestComputeCouncilReport:
         assert data.net_ytd == expected_net
 
     def test_monthly_distribution(self, chart, tmp_path, q1_snapshot, budget_data):
-        (tmp_path / "q1.json").write_text(q1_snapshot.model_dump_json())
+        (tmp_path / "pl_q1.json").write_text(q1_snapshot.model_dump_json())
 
         data = compute_council_report(
             year=2026, end_month=3, chart=chart,
@@ -344,8 +344,8 @@ class TestComputeCouncilReport:
         assert offertory.monthly_actuals["2026-03"] == expected
 
     def test_multiple_monthly_snapshots(self, chart, tmp_path, jan_snapshot, feb_snapshot):
-        (tmp_path / "jan.json").write_text(jan_snapshot.model_dump_json())
-        (tmp_path / "feb.json").write_text(feb_snapshot.model_dump_json())
+        (tmp_path / "pl_jan.json").write_text(jan_snapshot.model_dump_json())
+        (tmp_path / "pl_feb.json").write_text(feb_snapshot.model_dump_json())
 
         budget = {"offertory": 240000.0, "administration": 6000.0}
         data = compute_council_report(
@@ -362,7 +362,7 @@ class TestComputeCouncilReport:
         assert offertory.ytd_actual == 42000.0
 
     def test_single_month_report(self, chart, tmp_path, jan_snapshot):
-        (tmp_path / "jan.json").write_text(jan_snapshot.model_dump_json())
+        (tmp_path / "pl_jan.json").write_text(jan_snapshot.model_dump_json())
 
         data = compute_council_report(
             year=2026, end_month=1, chart=chart,

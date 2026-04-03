@@ -20,6 +20,7 @@ from pathlib import Path
 
 from app.csv_import import build_account_lookup, load_chart_of_accounts
 from app.models import ChartOfAccounts, FinancialSnapshot, SnapshotRow
+from app.xero.snapshots import xero_snapshot_to_financial
 from app.services.dashboard import BUDGETS_DIR, CHART_PATH, SNAPSHOTS_DIR, load_budget
 
 # ---------------------------------------------------------------------------
@@ -212,14 +213,18 @@ def _load_json_snapshots_for_year(
     snapshots: list[FinancialSnapshot] = []
     year_str = str(year)
 
-    for path in snap_dir.glob("*.json"):
+    for path in snap_dir.glob("pl_*.json"):
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
             snap = None
             if "report_date" in raw:
                 snap = FinancialSnapshot(**raw)
-            elif "response" in raw and "report_date" in raw.get("response", {}):
-                snap = FinancialSnapshot(**raw["response"])
+            elif "snapshot_metadata" in raw:
+                resp = raw.get("response", {})
+                if "report_date" in resp:
+                    snap = FinancialSnapshot(**resp)
+                else:
+                    snap = xero_snapshot_to_financial(raw)
 
             if snap and (snap.from_date.startswith(year_str) or snap.to_date.startswith(year_str)):
                 snapshots.append(snap)

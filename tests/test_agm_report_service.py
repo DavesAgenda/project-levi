@@ -164,7 +164,7 @@ class TestLoadYearActuals:
         """JSON snapshots should be used when available."""
         snap_dir = tmp_path / "snapshots"
         snap_dir.mkdir()
-        (snap_dir / "2023.json").write_text(full_year_snapshot.model_dump_json())
+        (snap_dir / "pl_2023.json").write_text(full_year_snapshot.model_dump_json())
 
         from app.csv_import import build_account_lookup
         lookup = build_account_lookup(chart)
@@ -217,7 +217,7 @@ class TestComputeAgmReport:
     def test_with_snapshot_data(self, chart, tmp_path, full_year_snapshot, budget_data):
         snap_dir = tmp_path / "snapshots"
         snap_dir.mkdir()
-        (snap_dir / "2023.json").write_text(full_year_snapshot.model_dump_json())
+        (snap_dir / "pl_2023.json").write_text(full_year_snapshot.model_dump_json())
 
         data = compute_agm_report(
             year=2023, chart=chart,
@@ -234,7 +234,7 @@ class TestComputeAgmReport:
     def test_income_rows_present(self, chart, tmp_path, full_year_snapshot, budget_data):
         snap_dir = tmp_path / "snapshots"
         snap_dir.mkdir()
-        (snap_dir / "2023.json").write_text(full_year_snapshot.model_dump_json())
+        (snap_dir / "pl_2023.json").write_text(full_year_snapshot.model_dump_json())
 
         data = compute_agm_report(
             year=2023, chart=chart,
@@ -251,7 +251,7 @@ class TestComputeAgmReport:
     def test_variance_calculations(self, chart, tmp_path, full_year_snapshot, budget_data):
         snap_dir = tmp_path / "snapshots"
         snap_dir.mkdir()
-        (snap_dir / "2023.json").write_text(full_year_snapshot.model_dump_json())
+        (snap_dir / "pl_2023.json").write_text(full_year_snapshot.model_dump_json())
 
         data = compute_agm_report(
             year=2023, chart=chart,
@@ -269,7 +269,7 @@ class TestComputeAgmReport:
     def test_significant_variances_flagged(self, chart, tmp_path, full_year_snapshot, budget_data):
         snap_dir = tmp_path / "snapshots"
         snap_dir.mkdir()
-        (snap_dir / "2023.json").write_text(full_year_snapshot.model_dump_json())
+        (snap_dir / "pl_2023.json").write_text(full_year_snapshot.model_dump_json())
 
         data = compute_agm_report(
             year=2023, chart=chart,
@@ -286,7 +286,7 @@ class TestComputeAgmReport:
     def test_section_summaries(self, chart, tmp_path, full_year_snapshot, budget_data):
         snap_dir = tmp_path / "snapshots"
         snap_dir.mkdir()
-        (snap_dir / "2023.json").write_text(full_year_snapshot.model_dump_json())
+        (snap_dir / "pl_2023.json").write_text(full_year_snapshot.model_dump_json())
 
         data = compute_agm_report(
             year=2023, chart=chart,
@@ -306,7 +306,7 @@ class TestComputeAgmReport:
     def test_net_position(self, chart, tmp_path, full_year_snapshot, budget_data):
         snap_dir = tmp_path / "snapshots"
         snap_dir.mkdir()
-        (snap_dir / "2023.json").write_text(full_year_snapshot.model_dump_json())
+        (snap_dir / "pl_2023.json").write_text(full_year_snapshot.model_dump_json())
 
         data = compute_agm_report(
             year=2023, chart=chart,
@@ -323,8 +323,8 @@ class TestComputeAgmReport:
     ):
         snap_dir = tmp_path / "snapshots"
         snap_dir.mkdir()
-        (snap_dir / "2023.json").write_text(full_year_snapshot.model_dump_json())
-        (snap_dir / "2022.json").write_text(year_2022_snapshot.model_dump_json())
+        (snap_dir / "pl_2023.json").write_text(full_year_snapshot.model_dump_json())
+        (snap_dir / "pl_2022.json").write_text(year_2022_snapshot.model_dump_json())
 
         data = compute_agm_report(
             year=2023, chart=chart,
@@ -349,8 +349,8 @@ class TestComputeAgmReport:
     ):
         snap_dir = tmp_path / "snapshots"
         snap_dir.mkdir()
-        (snap_dir / "2023.json").write_text(full_year_snapshot.model_dump_json())
-        (snap_dir / "2022.json").write_text(year_2022_snapshot.model_dump_json())
+        (snap_dir / "pl_2023.json").write_text(full_year_snapshot.model_dump_json())
+        (snap_dir / "pl_2022.json").write_text(year_2022_snapshot.model_dump_json())
 
         data = compute_agm_report(
             year=2023, chart=chart,
@@ -371,7 +371,7 @@ class TestComputeAgmReport:
         """CSV data should be picked up for years without JSON snapshots."""
         snap_dir = tmp_path / "snapshots"
         snap_dir.mkdir()
-        (snap_dir / "2023.json").write_text(full_year_snapshot.model_dump_json())
+        (snap_dir / "pl_2023.json").write_text(full_year_snapshot.model_dump_json())
 
         data = compute_agm_report(
             year=2023, chart=chart,
@@ -390,7 +390,7 @@ class TestComputeAgmReport:
     def test_default_trend_range(self, chart, tmp_path, full_year_snapshot, budget_data):
         snap_dir = tmp_path / "snapshots"
         snap_dir.mkdir()
-        (snap_dir / "2023.json").write_text(full_year_snapshot.model_dump_json())
+        (snap_dir / "pl_2023.json").write_text(full_year_snapshot.model_dump_json())
 
         data = compute_agm_report(
             year=2023, chart=chart,

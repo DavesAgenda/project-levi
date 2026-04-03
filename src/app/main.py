@@ -27,6 +27,7 @@ from app.routers.property_scenarios import router as property_scenarios_router
 from app.routers.xero_reports import router as xero_reports_router
 from app.routers.xero_sync import router as xero_sync_router
 from app.routers.verification import router as verification_router
+from app.routers.account_mapping import router as account_mapping_router
 
 APP_DIR = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR / "static"
@@ -60,27 +61,12 @@ app.include_router(budget_router)
 app.include_router(xero_reports_router)
 app.include_router(xero_sync_router)
 app.include_router(verification_router)
+app.include_router(account_mapping_router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-# ---------------------------------------------------------------------------
-# Inject ``user`` into all Jinja2 template contexts
-# ---------------------------------------------------------------------------
-
-@app.middleware("http")
-async def inject_user_into_templates(request: Request, call_next):
-    """Make ``request.state.user`` available as ``user`` in Jinja2 templates.
-
-    We patch ``templates.TemplateResponse`` at the router level, but the
-    simplest universal approach is an ``@app.middleware`` that modifies the
-    response *context* before the template is rendered.  Since Jinja2Templates
-    uses the ``request`` object, templates can already access
-    ``request.state.user``.  This middleware is a no-op pass-through; templates
-    should use ``request.state.user`` directly.
-    """
-    return await call_next(request)
 
 
 @app.get("/health")

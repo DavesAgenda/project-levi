@@ -14,6 +14,7 @@ import yaml
 from app.csv_import import build_account_lookup, load_chart_of_accounts
 from app.models import ChartOfAccounts, FinancialSnapshot
 from app.services.budget import load_budget_flat
+from app.xero.snapshots import xero_snapshot_to_financial
 
 # ---------------------------------------------------------------------------
 # Project paths
@@ -98,17 +99,26 @@ class DashboardData:
 # Snapshot loading
 # ---------------------------------------------------------------------------
 
-def find_latest_snapshot(directory: Path | None = None) -> FinancialSnapshot | None:
+def find_latest_snapshot(
+    directory: Path | None = None,
+    report_type: str = "pl",
+) -> FinancialSnapshot | None:
     """Find and load the most recent FinancialSnapshot JSON file.
 
     Looks for files matching the FinancialSnapshot schema in the snapshots
     directory.  Returns None if no snapshots exist.
+
+    Args:
+        directory: Override snapshot directory.
+        report_type: Filter by report type prefix (e.g., "pl", "balance_sheet").
+                     Use "" to match all files.
     """
     snap_dir = directory or SNAPSHOTS_DIR
     if not snap_dir.exists():
         return None
 
-    json_files = sorted(snap_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    pattern = f"{report_type}*.json" if report_type else "*.json"
+    json_files = sorted(snap_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
 
     for path in json_files:
         try:
@@ -116,12 +126,95 @@ def find_latest_snapshot(directory: Path | None = None) -> FinancialSnapshot | N
             # Handle both raw FinancialSnapshot and snapshot-writer wrapped format
             if "report_date" in raw:
                 return FinancialSnapshot(**raw)
-            if "response" in raw and "report_date" in raw.get("response", {}):
-                return FinancialSnapshot(**raw["response"])
+            if "snapshot_metadata" in raw:
+                resp = raw.get("response", {})
+                if "report_date" in resp:
+                    return FinancialSnapshot(**resp)
+                snap = xero_snapshot_to_financial(raw)
+                if snap:
+                    return snap
         except (json.JSONDecodeError, KeyError, TypeError):
             continue
 
     return None
+
+
+def load_ytd_snapshot(
+    year: int | None = None,
+    directory: Path | None = None,
+) -> FinancialSnapshot | None:
+    """Load and merge all monthly P&L snapshots for a given year into one YTD snapshot.
+
+    Aggregates rows across all monthly snapshots, summing amounts for each account.
+    Returns a single FinancialSnapshot with the combined YTD totals.
+    """
+    from datetime import date as date_type
+
+    snap_dir = directory or SNAPSHOTS_DIR
+    if not snap_dir.exists():
+        return None
+
+    year = year or date_type.today().year
+    year_str = str(year)
+
+    combined_rows: dict[str, tuple[str, float]] = {}  # code -> (name, total)
+    latest_to_date = ""
+
+    for path in sorted(snap_dir.glob("pl_*.json")):
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            snap = None
+            if "report_date" in raw:
+                snap = FinancialSnapshot(**raw)
+            elif "snapshot_metadata" in raw:
+                resp = raw.get("response", {})
+                if "report_date" in resp:
+                    snap = FinancialSnapshot(**resp)
+                else:
+                    snap = xero_snapshot_to_financial(raw)
+
+            if snap is None:
+                continue
+
+            # Only include snapshots from the target year
+            if not (snap.from_date.startswith(year_str) or snap.to_date.startswith(year_str)):
+                continue
+
+            if snap.to_date > latest_to_date:
+                latest_to_date = snap.to_date
+
+            for row in snap.rows:
+                key = row.account_code or row.account_name
+                if key in combined_rows:
+                    name, total = combined_rows[key]
+                    combined_rows[key] = (name, total + row.amount)
+                else:
+                    combined_rows[key] = (row.account_name, row.amount)
+
+        except (json.JSONDecodeError, KeyError, TypeError):
+            continue
+
+    if not combined_rows:
+        return None
+
+    from app.models import SnapshotRow
+
+    rows = [
+        SnapshotRow(
+            account_code=code if code != name else "",
+            account_name=name,
+            amount=round(total, 2),
+        )
+        for code, (name, total) in combined_rows.items()
+    ]
+
+    return FinancialSnapshot(
+        report_date=latest_to_date,
+        from_date=f"{year}-01-01",
+        to_date=latest_to_date,
+        source="xero_api",
+        rows=rows,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -154,6 +247,7 @@ def compute_dashboard_data(
     budget: dict[str, float] | None = None,
     chart: ChartOfAccounts | None = None,
     snapshots_dir: Path | None = None,
+    budget_scale: float | None = None,
 ) -> DashboardData:
     """Build complete dashboard data from a snapshot and budget.
 
@@ -167,10 +261,14 @@ def compute_dashboard_data(
             return DashboardData()
 
     if snapshot is None:
-        snapshot = find_latest_snapshot(snapshots_dir)
+        snapshot = load_ytd_snapshot(directory=snapshots_dir)
 
     if budget is None:
         budget = load_budget(chart=chart)
+
+    # CHA-266: Pro-rate budget for YTD view
+    if budget_scale is not None and budget_scale > 0:
+        budget = {k: v * budget_scale for k, v in budget.items()}
 
     if snapshot is None:
         return DashboardData()

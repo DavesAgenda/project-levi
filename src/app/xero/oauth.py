@@ -1,7 +1,7 @@
-"""Xero OAuth 2.0 Authorization Code Grant flow.
+"""Xero OAuth 2.0 — Web App (Authorization Code Grant).
 
 Handles:
-- Redirect to Xero for consent
+- Redirect to Xero for user consent
 - Callback to exchange code for tokens
 - Token storage (file-based, gitignored)
 - Automatic token refresh before expiry
@@ -11,6 +11,7 @@ Handles:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import secrets
 import stat
@@ -21,6 +22,8 @@ import httpx
 
 from app.xero.settings import xero_settings
 
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -29,9 +32,12 @@ XERO_AUTHORIZE_URL = "https://login.xero.com/identity/connect/authorize"
 XERO_TOKEN_URL = "https://identity.xero.com/connect/token"
 XERO_CONNECTIONS_URL = "https://api.xero.com/connections"
 
+# Granular scopes (mandatory for apps created after 2 March 2026).
+# openid + offline_access needed for Web App auth code flow.
 XERO_SCOPES = [
     "openid",
     "offline_access",
+    "accounting.journals.read",
     "accounting.reports.profitandloss.read",
     "accounting.reports.trialbalance.read",
     "accounting.reports.balancesheet.read",
@@ -40,7 +46,7 @@ XERO_SCOPES = [
 
 TOKEN_FILE = Path(__file__).resolve().parent.parent.parent.parent / ".xero_tokens.json"
 
-# In-memory state store for CSRF protection (single-user app, no DB needed)
+# In-memory CSRF state store (single-user app, no DB needed)
 _oauth_states: dict[str, float] = {}
 
 # Refresh buffer — refresh tokens 5 minutes before expiry
@@ -56,14 +62,13 @@ def _load_tokens() -> dict | None:
     if not TOKEN_FILE.exists():
         return None
     try:
-        data = json.loads(TOKEN_FILE.read_text(encoding="utf-8"))
-        return data
+        return json.loads(TOKEN_FILE.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return None
 
 
 def _save_tokens(token_data: dict) -> None:
-    """Persist tokens to disk with restricted file permissions (owner-only)."""
+    """Persist tokens to disk with restricted file permissions."""
     TOKEN_FILE.write_text(json.dumps(token_data, indent=2), encoding="utf-8")
     try:
         os.chmod(TOKEN_FILE, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
@@ -82,6 +87,13 @@ def clear_tokens() -> None:
         TOKEN_FILE.unlink()
 
 
+def is_token_expired(token_data: dict) -> bool:
+    """Check if the access token is expired or about to expire."""
+    obtained_at = token_data.get("obtained_at", 0)
+    expires_in = token_data.get("expires_in", 1800)  # Default 30 min
+    return time.time() >= (obtained_at + expires_in - _REFRESH_BUFFER_SECONDS)
+
+
 # ---------------------------------------------------------------------------
 # OAuth state management (CSRF protection)
 # ---------------------------------------------------------------------------
@@ -97,8 +109,7 @@ def validate_oauth_state(state: str) -> bool:
     """Validate and consume a state parameter. Returns True if valid."""
     if state in _oauth_states:
         created = _oauth_states.pop(state)
-        # State tokens valid for 10 minutes
-        if time.time() - created < 600:
+        if time.time() - created < 600:  # 10 minutes
             return True
     return False
 
@@ -110,16 +121,13 @@ def validate_oauth_state(state: str) -> bool:
 def build_authorize_url(redirect_uri: str) -> str:
     """Build the Xero authorization URL for the consent flow."""
     state = generate_oauth_state()
-    params = {
+    url = httpx.URL(XERO_AUTHORIZE_URL, params={
         "response_type": "code",
         "client_id": xero_settings.client_id,
         "redirect_uri": redirect_uri,
         "scope": " ".join(XERO_SCOPES),
         "state": state,
-    }
-    query = "&".join(f"{k}={httpx.QueryParams({k: v})}" for k, v in params.items())
-    # Use httpx URL building for proper encoding
-    url = httpx.URL(XERO_AUTHORIZE_URL, params=params)
+    })
     return str(url)
 
 
@@ -143,10 +151,9 @@ async def exchange_code_for_tokens(code: str, redirect_uri: str) -> dict:
         response.raise_for_status()
         token_data = response.json()
 
-    # Add metadata
     token_data["obtained_at"] = time.time()
 
-    # Fetch tenant ID
+    # Fetch tenant ID from /connections
     tenant_id = await _fetch_tenant_id(token_data["access_token"])
     token_data["tenant_id"] = tenant_id
 
@@ -167,7 +174,6 @@ async def _fetch_tenant_id(access_token: str) -> str:
     if not connections:
         raise ValueError("No Xero tenants found. Has the app been authorized?")
 
-    # Use the first (and typically only) connection
     return connections[0]["tenantId"]
 
 
@@ -175,7 +181,7 @@ async def _fetch_tenant_id(access_token: str) -> str:
 # Token refresh
 # ---------------------------------------------------------------------------
 
-async def refresh_access_token(refresh_token: str) -> dict:
+async def _refresh_access_token(refresh_token: str) -> dict:
     """Use a refresh token to obtain a new access token."""
     async with httpx.AsyncClient() as client:
         response = await client.post(
@@ -201,12 +207,9 @@ async def refresh_access_token(refresh_token: str) -> dict:
     return token_data
 
 
-def is_token_expired(token_data: dict) -> bool:
-    """Check if the access token is expired or about to expire."""
-    obtained_at = token_data.get("obtained_at", 0)
-    expires_in = token_data.get("expires_in", 1800)  # Default 30 min
-    return time.time() >= (obtained_at + expires_in - _REFRESH_BUFFER_SECONDS)
-
+# ---------------------------------------------------------------------------
+# Get valid token (auto-refresh)
+# ---------------------------------------------------------------------------
 
 async def get_valid_access_token() -> tuple[str, str]:
     """Get a valid access token and tenant ID, refreshing if needed.
@@ -215,12 +218,12 @@ async def get_valid_access_token() -> tuple[str, str]:
         Tuple of (access_token, tenant_id).
 
     Raises:
-        RuntimeError: If no tokens are stored or refresh token is expired.
+        RuntimeError: If no tokens are stored or refresh fails.
     """
     tokens = _load_tokens()
     if tokens is None:
         raise RuntimeError(
-            "No Xero tokens found. Complete the OAuth flow at /auth/xero/login first."
+            "No Xero tokens found. Connect Xero at /auth/xero/login first."
         )
 
     if is_token_expired(tokens):
@@ -228,24 +231,23 @@ async def get_valid_access_token() -> tuple[str, str]:
         if not refresh_token:
             raise RuntimeError(
                 "Access token expired and no refresh token available. "
-                "Re-authorize at /auth/xero/login."
+                "Re-connect Xero at /auth/xero/login."
             )
         try:
-            tokens = await refresh_access_token(refresh_token)
+            tokens = await _refresh_access_token(refresh_token)
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 400:
-                # Refresh token likely expired (60-day limit)
                 clear_tokens()
                 raise RuntimeError(
                     "Refresh token expired (60-day limit). "
-                    "Re-authorize at /auth/xero/login."
+                    "Re-connect Xero at /auth/xero/login."
                 ) from exc
             raise
 
     tenant_id = tokens.get("tenant_id")
     if not tenant_id:
         raise RuntimeError(
-            "No tenant ID stored. Re-authorize at /auth/xero/login."
+            "No tenant ID stored. Re-connect Xero at /auth/xero/login."
         )
 
     return tokens["access_token"], tenant_id

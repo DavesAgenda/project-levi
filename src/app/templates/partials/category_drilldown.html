@@ -1,0 +1,85 @@
+{% if drilldown.detail_level == "summary" %}
+<div class="px-6 py-3 bg-gray-50 text-caption text-neutral">
+  Summary view only. Contact your administrator for detailed breakdown.
+</div>
+
+{% elif drilldown.accounts %}
+<div class="overflow-x-auto">
+  <table class="min-w-full divide-y divide-outline">
+    <thead>
+      <tr class="bg-gray-50">
+        <th class="px-4 py-2 text-left text-caption font-semibold text-neutral">Code</th>
+        <th class="px-4 py-2 text-left text-caption font-semibold text-neutral">Account</th>
+        <th class="px-4 py-2 text-right text-caption font-semibold text-neutral">Amount</th>
+        <th class="px-4 py-2 text-right text-caption font-semibold text-neutral">Txns</th>
+        <th class="px-4 py-2 text-center text-caption font-semibold text-neutral">Type</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-outline">
+      {% for acct in drilldown.accounts %}
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="px-4 py-2 text-figure font-mono text-text whitespace-nowrap">{{ acct.code }}</td>
+        <td class="px-4 py-2 text-figure text-text">{{ acct.name }}</td>
+        <td class="px-4 py-2 text-figure font-mono text-right whitespace-nowrap
+            {% if acct.net_amount >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+          ${{ "{:,.2f}".format(acct.net_amount) }}
+        </td>
+        <td class="px-4 py-2 text-figure font-mono text-right text-neutral">{{ acct.transaction_count }}</td>
+        <td class="px-4 py-2 text-center">
+          {% if acct.is_legacy %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded-badge text-xs font-semibold bg-amber-100 text-amber-800">Legacy</span>
+          {% else %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded-badge text-xs font-semibold bg-green-100 text-green-800">Current</span>
+          {% endif %}
+        </td>
+      </tr>
+
+      {% if drilldown.detail_level == "transactions" and acct.transactions %}
+      <tr>
+        <td colspan="5" class="px-0 py-0">
+          <div class="ml-8 mr-4 mb-2 bg-gray-50 rounded-btn overflow-hidden">
+            <table class="min-w-full">
+              <thead>
+                <tr class="text-xs text-neutral">
+                  <th class="px-3 py-1.5 text-left font-medium">Date</th>
+                  <th class="px-3 py-1.5 text-left font-medium">Description</th>
+                  <th class="px-3 py-1.5 text-left font-medium">Ref</th>
+                  <th class="px-3 py-1.5 text-right font-medium">Amount</th>
+                </tr>
+              </thead>
+              <tbody class="text-xs">
+                {% for txn in acct.transactions %}
+                <tr class="border-t border-gray-200">
+                  <td class="px-3 py-1 font-mono text-text">{{ txn.journal_date }}</td>
+                  <td class="px-3 py-1 text-text">{{ txn.description or "—" }}</td>
+                  <td class="px-3 py-1 text-neutral">{{ txn.reference or "—" }}</td>
+                  <td class="px-3 py-1 font-mono text-right
+                      {% if txn.amount >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    ${{ "{:,.2f}".format(txn.amount) }}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </td>
+      </tr>
+      {% endif %}
+
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="bg-gray-50 font-semibold">
+        <td class="px-4 py-2 text-figure text-text" colspan="2">Total</td>
+        <td class="px-4 py-2 text-figure font-mono text-right text-text">${{ "{:,.2f}".format(drilldown.net_amount) }}</td>
+        <td class="px-4 py-2" colspan="2"></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+{% else %}
+<div class="px-6 py-3 bg-gray-50 text-caption text-neutral">
+  No account data available for this category.
+</div>
+{% endif %}

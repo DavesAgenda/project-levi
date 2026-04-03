@@ -378,6 +378,140 @@ def _find_by_uuid(
     return None
 
 
+def compute_tracking_matrix_from_journals(
+    tracking_category_name: str,
+    from_date: str,
+    to_date: str,
+    chart: ChartOfAccounts | None = None,
+    *,
+    journals_dir: Path | None = None,
+) -> TrackingMatrixData:
+    """Build tracking matrix from journal data instead of P&L reports (CHA-267).
+
+    Journal lines carry TrackingCategories directly — just group by option name.
+    This replaces the broken P&L report approach with deterministic aggregation.
+    """
+    from app.services.journal_aggregation import load_journals
+
+    if chart is None:
+        if CHART_PATH.exists():
+            chart = load_chart_of_accounts(CHART_PATH)
+        else:
+            return TrackingMatrixData(error="Chart of accounts not found")
+
+    account_lookup = build_account_lookup(chart)
+    entries = load_journals(from_date=from_date, to_date=to_date, journals_dir=journals_dir)
+
+    if not entries:
+        return TrackingMatrixData(
+            from_date=from_date,
+            to_date=to_date,
+            error="No journal data available for this period.",
+        )
+
+    # Collect all option names for the requested tracking category
+    option_names: set[str] = set()
+    # Aggregate: (category_key) -> {option_name -> amount}
+    cat_option_amounts: dict[str, dict[str, Decimal]] = {}
+
+    for entry in entries:
+        for line in entry.lines:
+            code = line.account_code
+            if code not in account_lookup:
+                continue
+
+            cat_key, section, budget_label, is_legacy = account_lookup[code]
+
+            for tag in line.tracking:
+                if tag.tracking_category_name != tracking_category_name:
+                    continue
+
+                opt = tag.option_name
+                option_names.add(opt)
+
+                if cat_key not in cat_option_amounts:
+                    cat_option_amounts[cat_key] = {}
+                cat_option_amounts[cat_key][opt] = (
+                    cat_option_amounts[cat_key].get(opt, Decimal("0"))
+                    + Decimal(str(line.net_amount))
+                )
+
+    if not option_names:
+        return TrackingMatrixData(
+            from_date=from_date,
+            to_date=to_date,
+            error=f"No journal lines found with tracking category '{tracking_category_name}'.",
+        )
+
+    column_headers = sorted(option_names)
+
+    # Build matrix rows
+    aggregated: dict[str, MatrixRow] = {}
+    # Get category metadata
+    cat_meta: dict[str, tuple[str, str]] = {}
+    for section_name, section_field in [("income", chart.income), ("expenses", chart.expenses)]:
+        for k, cat in section_field.items():
+            cat_meta[k] = (cat.budget_label, section_name)
+
+    for cat_key, opts in cat_option_amounts.items():
+        if cat_key not in cat_meta:
+            continue
+        label, section = cat_meta[cat_key]
+        row = MatrixRow(
+            budget_label=label,
+            category_key=cat_key,
+            section=section,
+            values={h: opts.get(h, Decimal("0")) for h in column_headers},
+            total=sum(opts.values(), Decimal("0")),
+        )
+        aggregated[cat_key] = row
+
+    all_rows = sorted(
+        aggregated.values(),
+        key=lambda r: (0 if r.section == "income" else 1, r.budget_label),
+    )
+
+    income_rows = [r for r in all_rows if r.section == "income"]
+    expense_rows = [r for r in all_rows if r.section == "expenses"]
+
+    # Column totals
+    income_totals: dict[str, Decimal] = {h: Decimal("0") for h in column_headers}
+    expense_totals: dict[str, Decimal] = {h: Decimal("0") for h in column_headers}
+    income_grand_total = Decimal("0")
+    expense_grand_total = Decimal("0")
+
+    for row in income_rows:
+        for h in column_headers:
+            income_totals[h] += row.values.get(h, Decimal("0"))
+        income_grand_total += row.total
+
+    for row in expense_rows:
+        for h in column_headers:
+            expense_totals[h] += row.values.get(h, Decimal("0"))
+        expense_grand_total += row.total
+
+    net_position: dict[str, Decimal] = {}
+    for h in column_headers:
+        net_position[h] = income_totals.get(h, Decimal("0")) - expense_totals.get(h, Decimal("0"))
+    net_grand_total = income_grand_total - expense_grand_total
+
+    return TrackingMatrixData(
+        tracking_category=None,
+        column_headers=column_headers,
+        income_rows=income_rows,
+        expense_rows=expense_rows,
+        income_totals=income_totals,
+        expense_totals=expense_totals,
+        income_grand_total=income_grand_total,
+        expense_grand_total=expense_grand_total,
+        net_position=net_position,
+        net_grand_total=net_grand_total,
+        has_data=len(income_rows) > 0 or len(expense_rows) > 0,
+        from_date=from_date,
+        to_date=to_date,
+    )
+
+
 def _find_by_name(
     account_name: str,
     account_lookup: dict[str, tuple[str, str, str, bool]],

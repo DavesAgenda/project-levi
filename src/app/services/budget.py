@@ -537,4 +537,23 @@ def load_budget_flat(
                     cat_key = account_lookup[code][0]
                     category_budgets[cat_key] = category_budgets.get(cat_key, 0) + float(amount)
 
+    # Add computed property income budget (derived from properties.yaml + overrides)
+    if "property_income" not in category_budgets:
+        try:
+            budget_file = load_budget_file(year, budgets_dir=bdir)
+            prop_income = compute_property_income(budget_file)
+            total_prop = sum(prop_income.values())
+            if total_prop > 0:
+                category_budgets["property_income"] = round(total_prop, 2)
+        except (BudgetNotFoundError, BudgetValidationError):
+            pass
+
+    # Add computed payroll budget (derived from payroll.yaml staff config)
+    if "payroll" in raw.get("expenses", {}):
+        from app.services.payroll import _staff_budget_from_config
+        payroll_budgets = _staff_budget_from_config()
+        for cat_key, amount in payroll_budgets.items():
+            if cat_key not in category_budgets:
+                category_budgets[cat_key] = amount
+
     return category_budgets

@@ -1,7 +1,9 @@
 """Xero API client — fetches reports from the Xero Accounting API.
 
-Uses httpx with automatic token refresh, xero-tenant-id header management,
-and exponential backoff retry for rate limits (429) and transient errors.
+Uses httpx with automatic token acquisition, exponential backoff retry for
+rate limits (429) and transient errors.
+
+Web Apps require the ``xero-tenant-id`` header on every API call.
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ from typing import Any
 
 import httpx
 
-from app.xero.oauth import get_valid_access_token
+from app.xero.oauth import clear_tokens, get_valid_access_token
 
 logger = logging.getLogger(__name__)
 
@@ -41,10 +43,11 @@ async def _xero_request(
     """Make an authenticated Xero API request with retry logic.
 
     Handles:
-    - Automatic token refresh (via get_valid_access_token)
-    - xero-tenant-id header
+    - Automatic token acquisition (via get_valid_access_token)
     - Exponential backoff for 429 and 5xx errors
     - 401 retry with fresh token (once)
+
+    Web Apps require the ``xero-tenant-id`` header to identify the org.
     """
     access_token, tenant_id = await get_valid_access_token()
     url = f"{XERO_API_BASE}{path}"
@@ -66,8 +69,9 @@ async def _xero_request(
                 )
 
                 if response.status_code == 401 and attempt == 0:
-                    # Token may have just expired — force refresh and retry once
-                    logger.info("Xero 401 — refreshing token and retrying")
+                    # Token may have just expired — clear cache and get fresh one
+                    logger.info("Xero 401 — clearing cached token and retrying")
+                    clear_tokens()
                     access_token, tenant_id = await get_valid_access_token()
                     continue
 
@@ -173,6 +177,102 @@ async def fetch_balance_sheet(date: str | None = None) -> dict:
     if date is not None:
         params["date"] = date
     return await _xero_request("GET", "/Reports/BalanceSheet", params=params)
+
+
+async def fetch_journals(
+    from_date: str | None = None,
+    to_date: str | None = None,
+    offset: int = 0,
+) -> list[dict]:
+    """Fetch all journals from Xero with offset-based pagination.
+
+    Xero returns max 100 journals per request.  We keep fetching until
+    a page returns fewer than 100 entries, then return the complete list.
+
+    Args:
+        from_date: Optional ISO date — exclude journals before this date.
+        to_date: Optional ISO date — exclude journals after this date.
+        offset: Starting offset (for resumable sync).
+
+    Returns:
+        List of raw Xero journal dicts (use ``parse_journal_entries``
+        to convert to Pydantic models).
+    """
+    all_journals: list[dict] = []
+    page_size = 100
+
+    while True:
+        data = await _xero_request(
+            "GET", "/Journals", params={"offset": offset},
+        )
+        page = data.get("Journals", [])
+        if not page:
+            break
+
+        # Client-side date filtering
+        for journal in page:
+            jdate = journal.get("JournalDate", "")[:10]  # "YYYY-MM-DDT..." → "YYYY-MM-DD"
+            if from_date and jdate < from_date:
+                continue
+            if to_date and jdate > to_date:
+                continue
+            all_journals.append(journal)
+
+        if len(page) < page_size:
+            break  # last page
+
+        # Xero offset = JournalNumber of last entry (not a simple +100)
+        offset = page[-1].get("JournalNumber", offset + page_size)
+
+    logger.info("Fetched %d journals from Xero (offset started at %d)", len(all_journals), offset)
+    return all_journals
+
+
+def parse_journal_entries(raw_journals: list[dict]) -> list:
+    """Convert raw Xero journal dicts to JournalEntry Pydantic models.
+
+    Imported here to avoid circular imports at module level.
+    """
+    from app.models.journal import JournalEntry, JournalLine, TrackingTag
+
+    entries = []
+    for j in raw_journals:
+        lines = []
+        for jl in j.get("JournalLines", []):
+            tracking = [
+                TrackingTag(
+                    tracking_category_id=tc.get("TrackingCategoryID", ""),
+                    tracking_category_name=tc.get("Name", ""),
+                    option_id=tc.get("Option", ""),
+                    option_name=tc.get("Option", ""),
+                )
+                for tc in jl.get("TrackingCategories", [])
+            ]
+            lines.append(JournalLine(
+                journal_line_id=jl.get("JournalLineID", ""),
+                account_id=jl.get("AccountID", ""),
+                account_code=jl.get("AccountCode", ""),
+                account_name=jl.get("AccountName", ""),
+                account_type=jl.get("AccountType", ""),
+                net_amount=float(jl.get("NetAmount", 0)),
+                gross_amount=float(jl.get("GrossAmount", 0)),
+                tax_amount=float(jl.get("TaxAmount", 0)),
+                description=jl.get("Description", "") or "",
+                tracking=tracking,
+            ))
+
+        entries.append(JournalEntry(
+            journal_id=j.get("JournalID", ""),
+            journal_number=str(j.get("JournalNumber", "")),
+            journal_date=j.get("JournalDate", "")[:10],
+            source_id=j.get("SourceID", "") or "",
+            source_type=j.get("SourceType", "") or "",
+            reference=j.get("Reference", "") or "",
+            lines=lines,
+            created_date_utc=j.get("CreatedDateUTC", "") or "",
+        ))
+
+    return entries
 
 
 async def fetch_tracking_categories() -> dict:

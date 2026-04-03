@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any
 
 from app.models import FinancialSnapshot
+from app.services.dashboard import load_ytd_snapshot
+from app.xero.snapshots import xero_snapshot_to_financial
 from app.services.property_assets import (
     PropertyAssetSummary,
     PropertyAssetValue,
@@ -123,13 +125,13 @@ class PortfolioSummary:
 # ---------------------------------------------------------------------------
 
 def _load_latest_snapshot(directory: Path | None = None) -> FinancialSnapshot | None:
-    """Load the most recent snapshot JSON file."""
+    """Load the most recent P&L snapshot JSON file."""
     snap_dir = directory or SNAPSHOTS_DIR
     if not snap_dir.exists():
         return None
 
     json_files = sorted(
-        snap_dir.glob("*.json"),
+        snap_dir.glob("pl_*.json"),
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
@@ -139,8 +141,13 @@ def _load_latest_snapshot(directory: Path | None = None) -> FinancialSnapshot | 
             raw = json.loads(path.read_text(encoding="utf-8"))
             if "report_date" in raw:
                 return FinancialSnapshot(**raw)
-            if "response" in raw and "report_date" in raw.get("response", {}):
-                return FinancialSnapshot(**raw["response"])
+            if "snapshot_metadata" in raw:
+                resp = raw.get("response", {})
+                if "report_date" in resp:
+                    return FinancialSnapshot(**resp)
+                snap = xero_snapshot_to_financial(raw)
+                if snap:
+                    return snap
         except (json.JSONDecodeError, KeyError, TypeError):
             continue
 
@@ -274,9 +281,9 @@ def compute_property_portfolio(
     if not properties:
         return PortfolioSummary()
 
-    # Load snapshot
+    # Load snapshot (aggregate all monthly P&L snapshots for YTD)
     if snapshot is None:
-        snapshot = _load_latest_snapshot(snapshots_dir)
+        snapshot = load_ytd_snapshot(directory=snapshots_dir)
 
     if snapshot is None:
         return PortfolioSummary()

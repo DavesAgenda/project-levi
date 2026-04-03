@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 
 from app.models import FinancialSnapshot
-from app.services.dashboard import find_latest_snapshot
+from app.services.dashboard import find_latest_snapshot, load_ytd_snapshot
 
 # ---------------------------------------------------------------------------
 # Project paths
@@ -229,38 +229,72 @@ def extract_total_income(snapshot: FinancialSnapshot) -> float:
 # Budget loading for payroll categories
 # ---------------------------------------------------------------------------
 
+_ROLE_TO_CATEGORY: dict[str, str] = {
+    "rector": "ministry_staff",
+    "senior minister": "ministry_staff",
+    "assistant minister": "ministry_staff",
+    "lay minister": "ministry_support",
+    "youth minister": "ministry_support",
+    "children's minister": "ministry_support",
+    "permanent": "admin_staff",
+    "casual": "admin_staff",
+    "part-time": "admin_staff",
+}
+
+
+def _staff_budget_from_config(
+    config_path: Path | None = None,
+) -> dict[str, float]:
+    """Compute annual payroll budget per category from payroll.yaml staff list.
+
+    Maps staff members to payroll categories by role and sums their total cost
+    (including recoveries) to produce budget figures.
+    """
+    staff, _ = load_payroll_config(config_path)
+    category_budgets: dict[str, float] = {}
+    for s in staff:
+        cat_key = _ROLE_TO_CATEGORY.get(s.role.lower(), "admin_staff")
+        category_budgets[cat_key] = category_budgets.get(cat_key, 0) + s.net_cost
+    return {k: round(v, 2) for k, v in category_budgets.items()}
+
+
 def load_payroll_budget(year: int = 2026) -> dict[str, float]:
-    """Load budget amounts for payroll categories from budgets/{year}.yaml.
+    """Load budget amounts for payroll categories.
+
+    First checks budgets/{year}.yaml for explicit line items.
+    Falls back to computing from payroll.yaml staff config.
 
     Returns dict mapping category_key -> budgeted amount.
     """
     budgets_dir = PROJECT_ROOT / "budgets"
     budget_path = budgets_dir / f"{year}.yaml"
-    if not budget_path.exists():
-        return {}
 
-    with open(budget_path, "r", encoding="utf-8") as f:
-        raw = yaml.safe_load(f) or {}
+    # Try explicit budget YAML first
+    if budget_path.exists():
+        with open(budget_path, "r", encoding="utf-8") as f:
+            raw = yaml.safe_load(f) or {}
 
-    expenses = raw.get("expenses", {})
-    if not isinstance(expenses, dict):
-        return {}
+        expenses = raw.get("expenses", {})
+        if isinstance(expenses, dict):
+            category_budgets: dict[str, float] = {}
+            for cat_key in PAYROLL_CATEGORIES:
+                group = expenses.get(cat_key, {})
+                if not isinstance(group, dict):
+                    continue
+                total = 0.0
+                for item_key, amount in group.items():
+                    if item_key in ("notes", "overrides", "vacancy_weeks"):
+                        continue
+                    if amount is not None:
+                        total += float(amount)
+                if total > 0:
+                    category_budgets[cat_key] = round(total, 2)
 
-    category_budgets: dict[str, float] = {}
-    for cat_key in PAYROLL_CATEGORIES:
-        group = expenses.get(cat_key, {})
-        if not isinstance(group, dict):
-            continue
-        total = 0.0
-        for item_key, amount in group.items():
-            if item_key in ("notes", "overrides", "vacancy_weeks"):
-                continue
-            if amount is not None:
-                total += float(amount)
-        if total > 0:
-            category_budgets[cat_key] = round(total, 2)
+            if category_budgets:
+                return category_budgets
 
-    return category_budgets
+    # Fall back to computing from payroll config
+    return _staff_budget_from_config()
 
 
 # ---------------------------------------------------------------------------
@@ -281,7 +315,7 @@ def compute_payroll_data(
     staff, diocese_scales = load_payroll_config(config_path)
 
     if snapshot is None:
-        snapshot = find_latest_snapshot(snapshots_dir)
+        snapshot = load_ytd_snapshot(directory=snapshots_dir)
 
     if budget is None:
         budget = load_payroll_budget()

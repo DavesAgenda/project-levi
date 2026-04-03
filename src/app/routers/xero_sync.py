@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from app.dependencies.auth import get_current_user, require_role
 from app.models.auth import User
-from app.services.sync import sync_monthly, sync_now
+from app.services.sync import sync_historical, sync_monthly, sync_now
 
 logger = logging.getLogger(__name__)
 
@@ -98,9 +98,24 @@ async def sync_monthly_endpoint(
 async def sync_now_endpoint(
     user: User = Depends(require_role("admin")),
 ):
-    """Manual live sync: fetch YTD P&L and current Balance Sheet.
+    """Manual live sync: fetch monthly P&L snapshots for the current year.
 
     Admin only (session cookie required).
     """
     result = await sync_now()
+    return result
+
+
+@router.post("/sync-historical")
+async def sync_historical_endpoint(
+    user: User = Depends(require_role("admin")),
+    from_year: int = 2021,
+    to_year: int = 2026,
+):
+    """Backfill monthly P&L snapshots for a range of years.
+
+    Admin only (session cookie required).
+    Defaults to 2021–2026 (5+ years of history).
+    """
+    result = await sync_historical(from_year, to_year)
     return result

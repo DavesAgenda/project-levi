@@ -1,13 +1,15 @@
-"""FastAPI router for Xero OAuth 2.0 authorization flow.
+"""FastAPI router for Xero Web App OAuth (authorization code flow).
 
 Endpoints:
-    GET  /auth/xero/login    — Redirect user to Xero for consent
-    GET  /auth/xero/callback — Handle authorization code exchange
-    GET  /auth/xero/status   — Check current auth status
+    GET  /auth/xero/login    — Redirect to Xero consent page
+    GET  /auth/xero/callback — Exchange code for tokens, store, redirect home
+    GET  /auth/xero/status   — Check connection status
     POST /auth/xero/logout   — Clear stored tokens
 """
 
 from __future__ import annotations
+
+import logging
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -22,80 +24,69 @@ from app.xero.oauth import (
 )
 from app.xero.settings import xero_settings
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/auth/xero", tags=["xero-auth"])
 
 
 @router.get("/login")
-async def xero_login():
-    """Redirect to Xero's authorization page for OAuth consent."""
-    if not xero_settings.client_id:
-        raise HTTPException(
-            status_code=500,
-            detail="XERO_CLIENT_ID not configured. Set it as an environment variable.",
-        )
-    url = build_authorize_url(xero_settings.redirect_uri)
-    return RedirectResponse(url=url)
+async def xero_login(request: Request):
+    """Redirect to Xero consent page to authorize scopes."""
+    login_url = build_authorize_url(xero_settings.redirect_uri)
+    return RedirectResponse(login_url, status_code=302)
 
 
 @router.get("/callback")
 async def xero_callback(
-    code: str | None = None,
-    state: str | None = None,
-    error: str | None = None,
-    error_description: str | None = None,
+    request: Request,
+    code: str = "",
+    state: str = "",
+    error: str = "",
+    error_description: str = "",
 ):
-    """Handle Xero OAuth callback with authorization code.
-
-    Exchanges the code for access + refresh tokens and stores them.
-    """
+    """Handle Xero OAuth callback — exchange code for tokens."""
     if error:
         raise HTTPException(
             status_code=400,
-            detail=f"Xero authorization failed: {error} — {error_description or ''}",
-        )
-
-    if not code or not state:
-        raise HTTPException(
-            status_code=400,
-            detail="Missing authorization code or state parameter.",
+            detail=f"Xero auth error: {error} — {error_description}",
         )
 
     if not validate_oauth_state(state):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid or expired state parameter. Please try logging in again.",
-        )
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing authorization code")
 
     try:
-        token_data = await exchange_code_for_tokens(code, xero_settings.redirect_uri)
+        await exchange_code_for_tokens(code, xero_settings.redirect_uri)
     except Exception as exc:
-        import logging
-        logging.getLogger(__name__).error("Token exchange failed: %s", exc)
+        logger.error("Xero token exchange failed: %s", exc)
         raise HTTPException(
             status_code=500,
-            detail="Token exchange failed. Check server logs for details.",
+            detail="Xero token exchange failed. Check server logs.",
         ) from exc
 
-    return {
-        "status": "connected",
-        "tenant_id": token_data.get("tenant_id"),
-        "message": "Xero authorization successful. You can now fetch reports.",
-    }
+    return RedirectResponse("/", status_code=302)
 
 
 @router.get("/status")
 async def xero_status():
     """Check current Xero connection status."""
+    if not xero_settings.client_id or not xero_settings.client_secret:
+        return {
+            "connected": False,
+            "message": "Xero credentials not configured.",
+        }
+
     tokens = get_stored_tokens()
     if tokens is None:
         return {
             "connected": False,
-            "message": "Not connected. Visit /auth/xero/login to authorize.",
+            "message": "Not connected. Visit /auth/xero/login to connect.",
         }
 
     expired = is_token_expired(tokens)
     has_refresh = bool(tokens.get("refresh_token"))
-
     return {
         "connected": True,
         "token_expired": expired,

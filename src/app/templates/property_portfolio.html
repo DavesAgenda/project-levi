@@ -307,6 +307,7 @@ const chartColors = {
   muted: getToken('--muted'),
   text: getToken('--text'),
   surface: getToken('--surface'),
+  outline: getToken('--outline'),
 };
 
 Chart.defaults.color = chartColors.text;
@@ -473,15 +474,15 @@ new Chart(document.getElementById('budgetActualChart'), {
       {
         label: 'Budget',
         data: budgetAmounts,
-        backgroundColor: hexToRgba(chartColors.primary, 0.6),
-        borderColor: chartColors.primary,
+        backgroundColor: hexToRgba(chartColors.outline, 0.4),
+        borderColor: chartColors.outline,
         borderWidth: 1,
       },
       {
         label: 'Actual',
         data: actualAmounts,
-        backgroundColor: hexToRgba(chartColors.accent, 0.6),
-        borderColor: chartColors.accent,
+        backgroundColor: hexToRgba(chartColors.primary, 0.7),
+        borderColor: chartColors.primary,
         borderWidth: 1,
       },
     ]

@@ -3,6 +3,7 @@
 *.secret
 .xero_tokens.json
 secrets/
+dev.ps1
 __pycache__/
 *.pyc
 .venv/

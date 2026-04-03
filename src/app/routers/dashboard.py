@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+import calendar
+from datetime import date
 from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from app.dependencies.auth import get_current_user
+from app.models.auth import User
 from app.services.dashboard import compute_dashboard_data
+from app.services.drilldown import get_category_drilldown
+from app.services.journal_aggregation import aggregate_ytd, aggregation_to_snapshot
+from app.xero.oauth import get_stored_tokens, is_token_expired
 
 APP_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = APP_DIR / "templates"
@@ -37,9 +44,35 @@ def _category_to_row(cat, section: str) -> dict:
 
 @router.get("/", response_class=HTMLResponse)
 @router.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    """Render the main dashboard page with KPI cards, charts, and variance table."""
-    data = compute_dashboard_data()
+async def dashboard(
+    request: Request,
+    view_mode: str = Query(default="ytd", description="ytd or full_year"),
+    source: str = Query(default="auto", description="auto, journals, or snapshots"),
+):
+    """Render the main dashboard page with KPI cards, charts, and variance table.
+
+    CHA-266: Supports view_mode toggle between YTD (pro-rated) and full_year.
+    Also supports journal-based data source when available.
+    """
+    # Try journal-based aggregation first if source allows
+    snapshot = None
+    if source in ("auto", "journals"):
+        try:
+            agg_result = aggregate_ytd()
+            if agg_result.journal_count > 0:
+                snapshot = aggregation_to_snapshot(agg_result)
+        except Exception:
+            pass  # Fall through to snapshot-based
+
+    # Compute with optional YTD pro-rating of budget
+    today = date.today()
+    budget_scale = None
+    if view_mode == "ytd":
+        # Pro-rate budget: months elapsed / 12
+        months_elapsed = today.month
+        budget_scale = months_elapsed / 12.0
+
+    data = compute_dashboard_data(snapshot=snapshot, budget_scale=budget_scale)
 
     income_rows = [_category_to_row(c, "income") for c in data.income_categories]
     expense_rows = [_category_to_row(c, "expenses") for c in data.expense_categories]
@@ -70,6 +103,9 @@ async def dashboard(request: Request):
         ),
     }
 
+    tokens = get_stored_tokens()
+    xero_connected = tokens is not None and not is_token_expired(tokens)
+
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -79,6 +115,9 @@ async def dashboard(request: Request):
             "expense_rows": expense_rows,
             "income_summary": income_summary,
             "expense_summary": expense_summary,
+            "xero_connected": xero_connected,
+            "view_mode": view_mode,
+            "source": source,
         },
     )
 
@@ -114,3 +153,31 @@ async def dashboard_data():
             "budget": [data.budget_total_income, data.budget_total_expenses],
         },
     }
+
+
+@router.get("/dashboard/drilldown/{section}/{category_key}", response_class=HTMLResponse)
+async def category_drilldown(
+    request: Request,
+    section: str,
+    category_key: str,
+):
+    """Return htmx partial with account-level detail for a category (CHA-269).
+
+    Detail level is determined by the user's role:
+    - admin: individual transactions
+    - board: account totals
+    - staff: summary only (no drill-down)
+    """
+    user = getattr(request.state, "user", None)
+    role = user.role if user else "staff"
+
+    drilldown = get_category_drilldown(section, category_key, role=role)
+
+    if drilldown is None:
+        return HTMLResponse("<p class='text-caption text-neutral p-4'>Category not found.</p>")
+
+    return templates.TemplateResponse(
+        request,
+        "partials/category_drilldown.html",
+        {"drilldown": drilldown},
+    )

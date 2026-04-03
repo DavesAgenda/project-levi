@@ -148,13 +148,10 @@ class TestLogout:
 class TestNavBar:
     """The nav bar should reflect authentication state."""
 
-    def test_nav_shows_login_button_when_unauthenticated(self, client: TestClient):
-        """When no user is set in template context, nav shows Login button."""
-        resp = client.get("/health")
-        # /health returns JSON, not HTML — so we check a page that renders base.html
-        # The dashboard is the best candidate
+    def test_nav_shows_user_info_when_authenticated(self, client: TestClient):
+        """When user is set (conftest admin), nav shows user name and logout."""
         resp = client.get("/")
-        if resp.status_code == 200:
-            body = resp.text
-            # When user is not set, the login link should appear
-            assert "/auth/login" in body or "Login" in body
+        assert resp.status_code == 200
+        body = resp.text
+        assert "Test Admin" in body or "test-admin@" in body
+        assert "/auth/logout" in body

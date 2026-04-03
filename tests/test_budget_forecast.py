@@ -78,7 +78,7 @@ def forecast_env(tmp_path: Path):
     # Snapshots
     snap_dir = tmp_path / "snapshots"
     snap_dir.mkdir()
-    (snap_dir / "sample_2026.json").write_text(
+    (snap_dir / "pl_sample_2026.json").write_text(
         json.dumps(SAMPLE_SNAPSHOT), encoding="utf-8"
     )
 
