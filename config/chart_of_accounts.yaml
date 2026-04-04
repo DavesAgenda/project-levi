@@ -5,178 +5,263 @@
 
 income:
   offertory:
-    budget_label: "1 - Offertory"
+    budget_label: 1 - Offertory
     accounts:
-      - { code: "10001", name: "Offering EFT" }
-      - { code: "10010", name: "Offertory Cash" }
-      - { code: "10020", name: "Tap Offertory" }
+    - code: '10001'
+      name: Offering EFT
+    - code: '10010'
+      name: Offertory Cash
     legacy_accounts:
-      - { code: "10005", name: "Offering Family 8AM" }
-      - { code: "10015", name: "Offering Family 10AM" }
-      - { code: "10300", name: "Offering Special Services" }
-
+    - code: '10005'
+      name: Offering Family 8AM
+    - code: '10015'
+      name: Offering Family 10AM
+    - code: '10300'
+      name: Offering Special Services
   thanksgiving:
-    budget_label: "Thanksgiving"
+    budget_label: 5 - Thanksgiving
     accounts:
-      - { code: "10500", name: "Thanksgiving" }
-    note: "One-off gifts, not included in recurring budget"
-
+    - code: '10500'
+      name: Thanksgiving
+    note: One-off gifts, not included in recurring budget
   property_income:
-    budget_label: "2 - Housing Income"
+    budget_label: 2 - Housing Income
     accounts:
-      - { code: "20060", name: "Example Street 6 Rent" }
-      - { code: "20010", name: "Example Avenue 33 Rent" }
-      - { code: "20040", name: "Example Road 33 Rent" }
-      - { code: "20020", name: "Example Road 35 Rent" }
-      - { code: "20030", name: "Example Road 39 Rent" }
+    - code: '20060'
+      name: Example Street 6 Rent
+    - code: '20010'
+      name: Example Avenue 33 Rent
+    - code: '20040'
+      name: Example Road 33 Rent
+    - code: '20020'
+      name: Example Road 35 Rent
+    - code: '20030'
+      name: Example Road 39 Rent
     legacy_accounts:
-      - { code: "12050", name: "Rectory Rent" }
-      - { code: "20070", name: "40 Hunter Street Rent" }
-
+    - code: '12050'
+      name: Rectory Rent
+    - code: '20070'
+      name: 40 Hunter Street Rent
   building_hire:
-    budget_label: "3 - Building Hire"
+    budget_label: 3 - Building Hire
     accounts:
-      - { code: "12500", name: "Hall Hire" }
+    - code: '12500'
+      name: Hall Hire
     legacy_accounts:
-      - { code: "12010", name: "Church Building Hire" }
-
+    - code: '12010'
+      name: Church Building Hire
   ministry_income:
-    budget_label: "Ministry Income"
-    note: "Consolidated in 2026 — individual ministry activities now tracked via Xero tracking codes"
+    budget_label: 4 - Ministry Income
     accounts:
-      - { code: "30000", name: "Ministry Income" }
+    - code: '30000'
+      name: Ministry Income
     legacy_accounts:
-      - { code: "30010", name: "Coffee Ministry" }
-      - { code: "30055", name: "Playtime" }
-      - { code: "30060", name: "Riv Stem Studio" }
-      - { code: "30076", name: "Creator Kids" }
-      - { code: "30077", name: "Men's Breakfast" }
-      - { code: "30078", name: "Night Church Dinner" }
-      - { code: "30079", name: "Women's Events" }
-      - { code: "30080", name: "Men's Events" }
-      - { code: "30081", name: "Hot Drink" }
-      - { code: "30085", name: "Toy Library" }
-      - { code: "30086", name: "Gingerbread Event" }
-      - { code: "30087", name: "Youth Camp" }
-
+    - code: '30010'
+      name: Coffee Ministry
+    - code: '30055'
+      name: Playtime
+    - code: '30060'
+      name: Riv Stem Studio
+    - code: '30076'
+      name: Creator Kids
+    - code: '30077'
+      name: Men's Breakfast
+    - code: '30078'
+      name: Night Church Dinner
+    - code: '30079'
+      name: Women's Events
+    - code: '30080'
+      name: Men's Events
+    - code: '30081'
+      name: Hot Drink
+    - code: '30085'
+      name: Toy Library
+    - code: '30086'
+      name: Gingerbread Event
+    - code: '30087'
+      name: Youth Camp
+    note: Consolidated in 2026 — individual ministry activities now tracked via Xero
+      tracking codes
   other_income:
-    budget_label: "4 - Other Incomes"
+    budget_label: 6 - Other Incomes
     accounts:
-      - { code: "12200", name: "Interest Income" }
-      - { code: "12100", name: "Surplice Fees (weddings etc)" }
-      - { code: "30100", name: "Building Donations" }
+    - code: '12200'
+      name: Interest Income
+    - code: '12100'
+      name: Surplice Fees (weddings etc)
+    - code: '30100'
+      name: Building Donations
     legacy_accounts:
-      - { code: "11000", name: "Grants" }
-      - { code: "12300", name: "Diocese Locum Contribution" }
-      - { code: "13000", name: "Other Income" }
-
+    - code: '11000'
+      name: Grants
+    - code: '12300'
+      name: Diocese Locum Contribution
+    - code: '13000'
+      name: Other Income
 expenses:
   ministry_staff:
-    budget_label: "Ministry Staff"
+    budget_label: Ministry Staff
     accounts:
-      - { code: "40100", name: "Ministry Staff Salaries" }
-      - { code: "40105", name: "Ministry Staff PCR" }
-      - { code: "40110", name: "Ministry Staff Allowances" }
-      - { code: "40180", name: "Ministry Staff LSL Recover" }
-      - { code: "40185", name: "Ministry Staff Other Salary Recovery" }
-
+    - code: '40100'
+      name: Ministry Staff Salaries
+    - code: '40105'
+      name: Ministry Staff PCR
+    - code: '40110'
+      name: Ministry Staff Allowances
+    - code: '40180'
+      name: Ministry Staff LSL Recover
+    - code: '40185'
+      name: Ministry Staff Other Salary Recovery
   ministry_support:
-    budget_label: "Ministry Support Staff"
+    budget_label: Ministry Support Staff
     accounts:
-      - { code: "40200", name: "Ministry Support Salaries" }
-      - { code: "40205", name: "Ministry Support Super" }
-      - { code: "40210", name: "Ministry Support Workers Comp" }
-      - { code: "40220", name: "Ministry Support Allowances" }
-      - { code: "40280", name: "Ministry Support Salary Recovery" }
+    - code: '40200'
+      name: Ministry Support Salaries
+    - code: '40205'
+      name: Ministry Support Super
+    - code: '40210'
+      name: Ministry Support Workers Comp
+    - code: '40220'
+      name: Ministry Support Allowances
+    - code: '40280'
+      name: Ministry Support Salary Recovery
     legacy_accounts:
-      - { code: "40215", name: "Ministry Support LSL" }
-      - { code: "40225", name: "Ministry Support Housing" }
-      - { code: "40240", name: "Ministry Support Other" }
-
+    - code: '40215'
+      name: Ministry Support LSL
+    - code: '40225'
+      name: Ministry Support Housing
+    - code: '40240'
+      name: Ministry Support Other
   admin_staff:
-    budget_label: "Administration Staff"
+    budget_label: Administration Staff
     accounts:
-      - { code: "40300", name: "Administration Staff Salaries" }
-      - { code: "40305", name: "Administration Super" }
+    - code: '40300'
+      name: Administration Staff Salaries
+    - code: '40305'
+      name: Administration Super
     legacy_accounts:
-      - { code: "40310", name: "Administration Workers Comp" }
-      - { code: "40315", name: "Administration LSL" }
-      - { code: "40320", name: "Administration Allowances" }
-      - { code: "40325", name: "Administration Housing" }
-      - { code: "40340", name: "Administration Other" }
-      - { code: "40380", name: "Administration Payroll Recovery" }
-
+    - code: '40310'
+      name: Administration Workers Comp
+    - code: '40315'
+      name: Administration LSL
+    - code: '40320'
+      name: Administration Allowances
+    - code: '40325'
+      name: Administration Housing
+    - code: '40340'
+      name: Administration Other
+    - code: '40380'
+      name: Administration Payroll Recovery
   property_rental:
-    budget_label: "Property Rental Expense"
+    budget_label: Property Rental Expense
     accounts:
-      - { code: "40401", name: "Property rental Expense" }
-      - { code: "40415", name: "Intern Accommodation" }
-
+    - code: '40401'
+      name: Property rental Expense
+    - code: '40415'
+      name: Intern Accommodation
   ministry_expenses:
-    budget_label: "Ministry Expenses"
-    note: "Consolidated in 2026 — individual activities now tracked via Xero tracking codes"
+    budget_label: Ministry Expenses
     accounts:
-      - { code: "41000", name: "Ministry Expenses" }
+    - code: '41000'
+      name: Ministry Expenses
     legacy_accounts:
-      - { code: "40306", name: "Playtime Expense" }
-      - { code: "40307", name: "Youth Camp Expense" }
-      - { code: "41100", name: "Ministry Expense" }
-
+    - code: '40306'
+      name: Playtime Expense
+    - code: '40307'
+      name: Youth Camp Expense
+    - code: '41100'
+      name: Ministry Expense
+    note: Consolidated in 2026 — individual activities now tracked via Xero tracking
+      codes
   administration:
-    budget_label: "Administration"
+    budget_label: Administration
     accounts:
-      - { code: "41505", name: "Accounting and Legal Fees" }
-      - { code: "41510", name: "Administrative Expenses" }
-      - { code: "41515", name: "Advertising" }
-      - { code: "41517", name: "Bank Fees" }
-      - { code: "41520", name: "Computer Software Licencing" }
-      - { code: "41525", name: "Copyright Fees and Licencing" }
-      - { code: "41530", name: "Merchant Fees" }
-      - { code: "41535", name: "Other Expenses" }
-      - { code: "41540", name: "Other Office Expenses" }
-      - { code: "41545", name: "Phone Internet Ministry Team" }
-      - { code: "41555", name: "Postage" }
-      - { code: "41560", name: "Printing" }
-      - { code: "41565", name: "Stationery" }
-      - { code: "41570", name: "Telephone" }
-
+    - code: '41505'
+      name: Accounting and Legal Fees
+    - code: '41510'
+      name: Administrative Expenses
+    - code: '41515'
+      name: Advertising
+    - code: '41517'
+      name: Bank Fees
+    - code: '41520'
+      name: Computer Software Licencing
+    - code: '41525'
+      name: Copyright Fees and Licencing
+    - code: '41530'
+      name: Merchant Fees
+    - code: '41535'
+      name: Other Expenses
+    - code: '41540'
+      name: Other Office Expenses
+    - code: '41545'
+      name: Phone Internet Ministry Team
+    - code: '41555'
+      name: Postage
+    - code: '41560'
+      name: Printing
+    - code: '41565'
+      name: Stationery
+    - code: '41570'
+      name: Telephone
   mission_giving:
-    budget_label: "Mission Giving"
+    budget_label: Mission Giving
     accounts:
-      - { code: "42501", name: "Mission Giving - Church Budget" }
-      - { code: "42502", name: "Other Missions" }
-
+    - code: '42501'
+      name: Mission Giving - Church Budget
+    - code: '42502'
+      name: Other Missions
   operations:
-    budget_label: "Operations"
+    budget_label: Operations
     accounts:
-      - { code: "42001", name: "Council Waste Collection" }
-      - { code: "43005", name: "Conferences and Seminars" }
-      - { code: "43030", name: "Hospitality" }
-      - { code: "43040", name: "Rates and Utilities" }
-      - { code: "43050", name: "Other Outreach" }
-      - { code: "43060", name: "Workers Compensation Insurance exp" }
-      - { code: "43070", name: "Service Setup" }
-      - { code: "43075", name: "Resource Materials" }
-      - { code: "43080", name: "Car Insurance Exp" }
-      - { code: "43085", name: "Training" }
-      - { code: "43095", name: "Fuel & Gas" }
-
+    - code: '42001'
+      name: Council Waste Collection
+    - code: '43005'
+      name: Conferences and Seminars
+    - code: '43030'
+      name: Hospitality
+    - code: '43040'
+      name: Rates and Utilities
+    - code: '43050'
+      name: Other Outreach
+    - code: '43060'
+      name: Workers Compensation Insurance exp
+    - code: '43070'
+      name: Service Setup
+    - code: '43075'
+      name: Resource Materials
+    - code: '43080'
+      name: Car Insurance Exp
+    - code: '43085'
+      name: Training
+    - code: '43095'
+      name: Fuel & Gas
   property_maintenance:
-    budget_label: "Property & Maintenance"
+    budget_label: Property & Maintenance
     accounts:
-      - { code: "44601", name: "Repairs & Maintenance" }
-      - { code: "44602", name: "Rectory Repairs & Maint" }
-      - { code: "44610", name: "Cleaning and Waste Removal" }
+    - code: '44601'
+      name: Repairs & Maintenance
+    - code: '44602'
+      name: Rectory Repairs & Maint
+    - code: '44610'
+      name: Cleaning and Waste Removal
     property_costs:
-      - { code: "89010", name: "Example Avenue 33 Costs" }
-      - { code: "89020", name: "Example Road 35 Costs" }
-      - { code: "89030", name: "Example Road 39 Costs" }
-      - { code: "89040", name: "Example Road 33 Costs" }
-      - { code: "89050", name: "Example Street 6 Costs" }
-
+    - code: '89010'
+      name: Example Avenue 33 Costs
+    - code: '89020'
+      name: Example Road 35 Costs
+    - code: '89030'
+      name: Example Road 39 Costs
+    - code: '89040'
+      name: Example Road 33 Costs
+    - code: '89050'
+      name: Example Street 6 Costs
   diocesan:
-    budget_label: "Diocesan Costs"
+    budget_label: Diocesan Costs
     accounts:
-      - { code: "44901", name: "Church Land Acquisition Costs" }
-      - { code: "44902", name: "Diocesan Administrative Costs" }
-      - { code: "44903", name: "Property Receipts Levy" }
+    - code: '44901'
+      name: Church Land Acquisition Costs
+    - code: '44902'
+      name: Diocesan Administrative Costs
+    - code: '44903'
+      name: Property Receipts Levy

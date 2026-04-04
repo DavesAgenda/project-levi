@@ -20,6 +20,7 @@ from app.csv_import import (
     to_snapshot,
 )
 from app.models import ChartOfAccounts, FinancialSnapshot
+from app.services.pl_helpers import infer_pl_section, is_summary_row
 from app.xero.snapshots import xero_snapshot_to_financial
 from app.services.dashboard import CHART_PATH, CONFIG_DIR, SNAPSHOTS_DIR
 
@@ -215,6 +216,10 @@ def get_all_categories(chart: ChartOfAccounts | None = None) -> list[CategoryInf
                 section=section_name,
             ))
 
+    # CHA-276: add uncategorised pseudo-categories
+    categories.append(CategoryInfo(key="_uncategorised_income", label="Uncategorised", section="income"))
+    categories.append(CategoryInfo(key="_uncategorised_expenses", label="Uncategorised", section="expenses"))
+
     # Sort: income first, then expenses, alpha by label within
     categories.sort(key=lambda c: (0 if c.section == "income" else 1, c.label))
     return categories
@@ -268,9 +273,16 @@ def aggregate_category_by_year(
 
         category_total = 0.0
         for row in snapshot.rows:
+            if is_summary_row(row):
+                continue
             if row.account_code in account_lookup:
                 cat_key = account_lookup[row.account_code][0]
                 if cat_key == category_key:
+                    category_total += row.amount
+            elif row.amount != 0 and category_key.startswith("_uncategorised_"):
+                # CHA-276: match unmapped accounts to uncategorised pseudo-categories
+                section = infer_pl_section(row.account_code or "", row.account_name)
+                if f"_uncategorised_{section}" == category_key:
                     category_total += row.amount
 
         if category_total != 0.0:
@@ -311,9 +323,15 @@ def aggregate_category_by_month(
 
         category_total = 0.0
         for row in snapshot.rows:
+            if is_summary_row(row):
+                continue
             if row.account_code in account_lookup:
                 cat_key = account_lookup[row.account_code][0]
                 if cat_key == category_key:
+                    category_total += row.amount
+            elif row.amount != 0 and category_key.startswith("_uncategorised_"):
+                section = infer_pl_section(row.account_code or "", row.account_name)
+                if f"_uncategorised_{section}" == category_key:
                     category_total += row.amount
 
         if category_total != 0.0:

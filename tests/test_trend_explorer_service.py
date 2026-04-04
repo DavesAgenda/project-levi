@@ -120,11 +120,14 @@ def monthly_snapshots() -> list[FinancialSnapshot]:
 class TestGetAllCategories:
     def test_returns_all_categories(self, chart: ChartOfAccounts):
         categories = get_all_categories(chart)
-        assert len(categories) == 3
+        # 3 real + 2 uncategorised pseudo-categories (CHA-276)
+        assert len(categories) == 5
         keys = [c.key for c in categories]
         assert "offertory" in keys
         assert "property_income" in keys
         assert "administration" in keys
+        assert "_uncategorised_income" in keys
+        assert "_uncategorised_expenses" in keys
 
     def test_income_categories_come_first(self, chart: ChartOfAccounts):
         categories = get_all_categories(chart)
@@ -134,11 +137,14 @@ class TestGetAllCategories:
         expense_idx = [i for i, s in enumerate(sections) if s == "expenses"]
         assert max(income_idx) < min(expense_idx)
 
-    def test_returns_empty_for_missing_chart(self):
+    def test_returns_uncategorised_for_empty_chart(self):
+        """Even with no mapped categories, uncategorised pseudo-categories exist."""
         categories = get_all_categories(
             ChartOfAccounts(income={}, expenses={})
         )
-        assert categories == []
+        assert len(categories) == 2
+        keys = {c.key for c in categories}
+        assert keys == {"_uncategorised_income", "_uncategorised_expenses"}
 
 
 # ---------------------------------------------------------------------------

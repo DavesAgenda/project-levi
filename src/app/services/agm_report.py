@@ -20,6 +20,7 @@ from pathlib import Path
 
 from app.csv_import import build_account_lookup, load_chart_of_accounts
 from app.models import ChartOfAccounts, FinancialSnapshot, SnapshotRow
+from app.services.pl_helpers import infer_pl_section, is_summary_row
 from app.xero.snapshots import xero_snapshot_to_financial
 from app.services.dashboard import BUDGETS_DIR, CHART_PATH, SNAPSHOTS_DIR, load_budget
 
@@ -250,11 +251,18 @@ def _aggregate_snapshots_to_category_totals(
     # Prefer the widest-spanning snapshot (full year if available)
     best = max(snapshots, key=lambda s: (s.to_date, s.from_date))
 
+    # CHA-276: include unmapped accounts as uncategorised
     category_totals: dict[str, float] = {}
     for row in best.rows:
+        if is_summary_row(row):
+            continue
         if row.account_code in account_lookup:
             cat_key = account_lookup[row.account_code][0]
             category_totals[cat_key] = category_totals.get(cat_key, 0) + row.amount
+        elif row.amount != 0:
+            section = infer_pl_section(row.account_code or "", row.account_name)
+            uncat_key = f"_uncategorised_{section}"
+            category_totals[uncat_key] = category_totals.get(uncat_key, 0) + row.amount
 
     return category_totals
 
@@ -356,6 +364,9 @@ def compute_agm_report(
         for cat_key, cat in section_field.items():
             cat_meta[cat_key] = (cat.budget_label, section_name)
 
+    # CHA-276: uncategorised pseudo-categories registered after actuals are loaded
+    # (see below, after yearly_actuals is populated)
+
     # Determine trend year range (5 years by default)
     if trend_start_year is None:
         trend_start_year = year - 4
@@ -369,6 +380,13 @@ def compute_agm_report(
         )
 
     report_actuals = yearly_actuals.get(year, {})
+
+    # CHA-276: register uncategorised pseudo-categories if any year has them
+    for y_actuals in yearly_actuals.values():
+        if "_uncategorised_income" in y_actuals:
+            cat_meta.setdefault("_uncategorised_income", ("Uncategorised", "income"))
+        if "_uncategorised_expenses" in y_actuals:
+            cat_meta.setdefault("_uncategorised_expenses", ("Uncategorised", "expenses"))
 
     if not report_actuals:
         return AGMReportData(

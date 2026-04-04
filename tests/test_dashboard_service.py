@@ -10,9 +10,11 @@ from app.models import FinancialSnapshot, SnapshotRow
 from app.services.dashboard import (
     CategoryVariance,
     DashboardData,
+    UnmappedAccount,
     compute_dashboard_data,
     find_latest_snapshot,
 )
+from app.services.pl_helpers import infer_pl_section, is_summary_row
 
 
 # ---------------------------------------------------------------------------
@@ -250,6 +252,151 @@ class TestFindLatestSnapshot:
 # ---------------------------------------------------------------------------
 # DashboardData properties
 # ---------------------------------------------------------------------------
+
+class TestUnmappedAccounts:
+    """CHA-276: Unmapped accounts appear in P&L tables, not a separate section."""
+
+    def test_unmapped_creates_uncategorised_rows(self, chart, budget_data):
+        """Unmapped expense accounts appear as 'Uncategorised' in expense categories."""
+        snapshot = FinancialSnapshot(
+            report_date="2026-03-31",
+            from_date="2026-01-01",
+            to_date="2026-03-31",
+            source="csv_import",
+            rows=[
+                SnapshotRow(account_code="10001", account_name="Offering EFT", amount=50000.0),
+                # Code 99999 starts with 9 → expenses
+                SnapshotRow(account_code="99999", account_name="Mystery Expense", amount=3200.0),
+                # Code 15000 starts with 1 → income
+                SnapshotRow(account_code="15000", account_name="Tap Offertory", amount=750.0),
+            ],
+        )
+        data = compute_dashboard_data(
+            snapshot=snapshot, budget=budget_data, chart=chart,
+        )
+        # Uncategorised income row exists
+        uncat_income = [c for c in data.income_categories if c.category_key == "_uncategorised_income"]
+        assert len(uncat_income) == 1
+        assert uncat_income[0].actual == 750.0
+        assert uncat_income[0].budget == 0.0
+        assert uncat_income[0].budget_label == "Uncategorised"
+
+        # Uncategorised expense row exists
+        uncat_expense = [c for c in data.expense_categories if c.category_key == "_uncategorised_expenses"]
+        assert len(uncat_expense) == 1
+        assert uncat_expense[0].actual == 3200.0
+
+    def test_unmapped_included_in_totals(self, chart):
+        """Unmapped amounts are included in total_income and total_expenses."""
+        snapshot = FinancialSnapshot(
+            report_date="2026-03-31",
+            from_date="2026-01-01",
+            to_date="2026-03-31",
+            source="csv_import",
+            rows=[
+                SnapshotRow(account_code="10001", account_name="Offering EFT", amount=50000.0),
+                SnapshotRow(account_code="15000", account_name="Unmapped Income", amount=1000.0),
+                SnapshotRow(account_code="99999", account_name="Unmapped Expense", amount=500.0),
+            ],
+        )
+        data = compute_dashboard_data(snapshot=snapshot, budget={}, chart=chart)
+        assert data.total_income == 51000.0  # 50000 mapped + 1000 unmapped
+        assert data.total_expenses == 500.0  # 0 mapped + 500 unmapped
+
+    def test_xero_summary_rows_filtered(self, chart):
+        """Xero summary rows (Gross Profit, Net Profit, Total...) are excluded."""
+        snapshot = FinancialSnapshot(
+            report_date="2026-03-31",
+            from_date="2026-01-01",
+            to_date="2026-03-31",
+            source="csv_import",
+            rows=[
+                SnapshotRow(account_code="10001", account_name="Offering EFT", amount=50000.0),
+                SnapshotRow(account_code="", account_name="Gross Profit", amount=85000.0),
+                SnapshotRow(account_code="", account_name="Net Profit", amount=-22000.0),
+                SnapshotRow(account_code="", account_name="Total Operating Expenses", amount=30000.0),
+            ],
+        )
+        data = compute_dashboard_data(snapshot=snapshot, budget={}, chart=chart)
+        # Summary rows should not appear anywhere
+        assert len(data.unmapped_accounts) == 0
+        all_labels = [c.budget_label for c in data.categories]
+        assert "Uncategorised" not in all_labels
+        # Only the mapped income
+        assert data.total_income == 50000.0
+        assert data.total_expenses == 0.0
+
+    def test_zero_amount_excluded(self, chart):
+        """Accounts with zero net amount don't create uncategorised rows."""
+        snapshot = FinancialSnapshot(
+            report_date="2026-03-31",
+            from_date="2026-01-01",
+            to_date="2026-03-31",
+            source="csv_import",
+            rows=[
+                SnapshotRow(account_code="99999", account_name="Zero Account", amount=0.0),
+            ],
+        )
+        data = compute_dashboard_data(snapshot=snapshot, budget={}, chart=chart)
+        assert len(data.unmapped_accounts) == 0
+        assert not any(c.category_key.startswith("_uncategorised") for c in data.categories)
+
+    def test_total_displayed_equals_total_snapshot(self, chart, budget_data):
+        """Invariant: sum of all category actuals == sum of non-summary snapshot rows.
+
+        This ensures no P&L data is silently dropped (CHA-276).
+        """
+        snapshot = FinancialSnapshot(
+            report_date="2026-03-31",
+            from_date="2026-01-01",
+            to_date="2026-03-31",
+            source="csv_import",
+            rows=[
+                SnapshotRow(account_code="10001", account_name="Offering EFT", amount=62500.0),
+                SnapshotRow(account_code="10010", account_name="Offertory Cash", amount=1200.0),
+                SnapshotRow(account_code="41510", account_name="Administrative Expenses", amount=680.0),
+                SnapshotRow(account_code="15000", account_name="Tap Offertory", amount=3200.0),
+                SnapshotRow(account_code="88888", account_name="Unknown Expense", amount=450.0),
+                # Summary rows — should be excluded from both sides
+                SnapshotRow(account_code="", account_name="Gross Profit", amount=85000.0),
+                SnapshotRow(account_code="", account_name="Net Profit", amount=-22000.0),
+            ],
+        )
+        data = compute_dashboard_data(
+            snapshot=snapshot, budget=budget_data, chart=chart,
+        )
+        # Total of all real account rows (excluding summary rows)
+        real_total = sum(
+            r.amount for r in snapshot.rows
+            if r.account_code  # summary rows have empty code
+        )
+        # Sum of all category actuals (mapped + uncategorised)
+        category_total = sum(c.actual for c in data.categories)
+        assert round(category_total, 2) == round(real_total, 2)
+
+    def testinfer_pl_section_by_code(self):
+        """Account codes < 40000 → income, >= 40000 → expenses."""
+        assert infer_pl_section("10001", "Offering") == "income"
+        assert infer_pl_section("20060", "Rent") == "income"
+        assert infer_pl_section("30000", "Ministry") == "income"
+        assert infer_pl_section("40100", "Salaries") == "expenses"
+        assert infer_pl_section("89010", "Property Costs") == "expenses"
+
+    def testinfer_pl_section_fallback(self):
+        """Without a code, falls back to name-based heuristics."""
+        assert infer_pl_section("", "Tap Offertory") == "income"
+        assert infer_pl_section("", "Interest Income") == "income"
+        assert infer_pl_section("", "Hall Hire") == "income"
+        assert infer_pl_section("", "Cleaning Supplies") == "expenses"
+
+    def testis_summary_row(self):
+        """Xero summary rows are correctly identified."""
+        assert is_summary_row(SnapshotRow(account_code="", account_name="Gross Profit", amount=0)) is True
+        assert is_summary_row(SnapshotRow(account_code="", account_name="Net Profit", amount=0)) is True
+        assert is_summary_row(SnapshotRow(account_code="", account_name="Total Operating Expenses", amount=0)) is True
+        # Real accounts with codes are never summary rows
+        assert is_summary_row(SnapshotRow(account_code="10001", account_name="Gross Profit", amount=0)) is False
+
 
 class TestDashboardData:
     def test_empty_dashboard(self):

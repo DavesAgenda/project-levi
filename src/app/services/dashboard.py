@@ -14,6 +14,7 @@ import yaml
 from app.csv_import import build_account_lookup, load_chart_of_accounts
 from app.models import ChartOfAccounts, FinancialSnapshot
 from app.services.budget import load_budget_flat
+from app.services.pl_helpers import infer_pl_section as _infer_pl_section, is_summary_row as _is_summary_row
 from app.xero.snapshots import xero_snapshot_to_financial
 
 # ---------------------------------------------------------------------------
@@ -72,6 +73,15 @@ class CategoryVariance:
 
 
 @dataclass
+class UnmappedAccount:
+    """An account with actuals that isn't mapped to any chart-of-accounts category."""
+
+    code: str
+    name: str
+    amount: float
+
+
+@dataclass
 class DashboardData:
     """Complete dashboard context for template rendering."""
 
@@ -82,6 +92,7 @@ class DashboardData:
     budget_total_expenses: float = 0.0
     budget_consumed_pct: float = 0.0
     categories: list[CategoryVariance] = field(default_factory=list)
+    unmapped_accounts: list[UnmappedAccount] = field(default_factory=list)
     has_data: bool = False
     snapshot_date: str = ""
     snapshot_period: str = ""
@@ -275,12 +286,29 @@ def compute_dashboard_data(
 
     account_lookup = build_account_lookup(chart)
 
-    # Aggregate actuals by category_key
+    # Aggregate actuals by category_key; classify unmapped as income/expenses
     category_actuals: dict[str, float] = {}
+    unmapped_income_total = 0.0
+    unmapped_expense_total = 0.0
+    unmapped: list[UnmappedAccount] = []
+
     for row in snapshot.rows:
+        if _is_summary_row(row):
+            continue
         if row.account_code in account_lookup:
             cat_key = account_lookup[row.account_code][0]
             category_actuals[cat_key] = category_actuals.get(cat_key, 0) + row.amount
+        elif row.amount != 0:
+            section = _infer_pl_section(row.account_code or "", row.account_name)
+            unmapped.append(UnmappedAccount(
+                code=row.account_code or "",
+                name=row.account_name,
+                amount=round(row.amount, 2),
+            ))
+            if section == "income":
+                unmapped_income_total += row.amount
+            else:
+                unmapped_expense_total += row.amount
 
     # Build a combined set of all category keys
     all_keys = set(list(category_actuals.keys()) + list(budget.keys()))
@@ -333,10 +361,38 @@ def compute_dashboard_data(
             total_expenses += actual
             budget_total_expenses += budgeted
 
+    # CHA-276: Add uncategorised rows so P&L totals are complete
+    if unmapped_income_total != 0:
+        categories.append(CategoryVariance(
+            category_key="_uncategorised_income",
+            budget_label="Uncategorised",
+            section="income",
+            actual=round(unmapped_income_total, 2),
+            budget=0.0,
+            variance_dollar=round(unmapped_income_total, 2),
+            variance_pct=None,
+        ))
+        total_income += unmapped_income_total
+
+    if unmapped_expense_total != 0:
+        categories.append(CategoryVariance(
+            category_key="_uncategorised_expenses",
+            budget_label="Uncategorised",
+            section="expenses",
+            actual=round(unmapped_expense_total, 2),
+            budget=0.0,
+            variance_dollar=round(unmapped_expense_total, 2),
+            variance_pct=None,
+        ))
+        total_expenses += unmapped_expense_total
+
     # Budget consumed % — what fraction of expense budget has been spent
     budget_consumed_pct = 0.0
     if budget_total_expenses > 0:
         budget_consumed_pct = round(total_expenses / budget_total_expenses * 100, 1)
+
+    # Sort unmapped by absolute amount descending for visibility
+    unmapped.sort(key=lambda u: abs(u.amount), reverse=True)
 
     return DashboardData(
         total_income=round(total_income, 2),
@@ -346,6 +402,7 @@ def compute_dashboard_data(
         budget_total_expenses=round(budget_total_expenses, 2),
         budget_consumed_pct=budget_consumed_pct,
         categories=categories,
+        unmapped_accounts=unmapped,
         has_data=True,
         snapshot_date=snapshot.report_date,
         snapshot_period=f"{snapshot.from_date} to {snapshot.to_date}",

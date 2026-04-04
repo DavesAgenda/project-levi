@@ -148,7 +148,8 @@ class TestSnapshotToMonthlyActuals:
         assert result["offertory"]["2026-02"] == expected_monthly
         assert result["offertory"]["2026-03"] == expected_monthly
 
-    def test_unmapped_accounts_excluded(self, chart):
+    def test_unmapped_accounts_as_uncategorised(self, chart):
+        """CHA-276: unmapped accounts appear as _uncategorised_expenses."""
         from app.csv_import import build_account_lookup
         lookup = build_account_lookup(chart)
         snapshot = FinancialSnapshot(
@@ -161,7 +162,9 @@ class TestSnapshotToMonthlyActuals:
             ],
         )
         result = _snapshot_to_monthly_actuals(snapshot, lookup)
-        assert result == {}
+        # Code 99999 starts with 9 -> expenses
+        assert "_uncategorised_expenses" in result
+        assert result["_uncategorised_expenses"]["2026-01"] == 500.0
 
 
 # ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@ from pathlib import Path
 
 from app.csv_import import build_account_lookup, load_chart_of_accounts
 from app.models import ChartOfAccounts, FinancialSnapshot
+from app.services.pl_helpers import infer_pl_section, is_summary_row
 from app.xero.snapshots import xero_snapshot_to_financial
 from app.services.dashboard import CHART_PATH, SNAPSHOTS_DIR
 
@@ -181,12 +182,18 @@ def _snapshot_to_monthly_actuals(
 
     num_months = len(covered_months) if covered_months else 1
 
-    # Aggregate actuals by category
+    # Aggregate actuals by category (CHA-276: include unmapped as uncategorised)
     category_totals: dict[str, float] = {}
     for row in snapshot.rows:
+        if is_summary_row(row):
+            continue
         if row.account_code in account_lookup:
             cat_key = account_lookup[row.account_code][0]
             category_totals[cat_key] = category_totals.get(cat_key, 0) + row.amount
+        elif row.amount != 0:
+            section = infer_pl_section(row.account_code or "", row.account_name)
+            uncat_key = f"_uncategorised_{section}"
+            category_totals[uncat_key] = category_totals.get(uncat_key, 0) + row.amount
 
     # Distribute evenly across covered months
     result: dict[str, dict[str, float]] = {}
@@ -299,6 +306,12 @@ def compute_council_report(
     for section_name, section_field in [("income", chart.income), ("expenses", chart.expenses)]:
         for cat_key, cat in section_field.items():
             cat_meta[cat_key] = (cat.budget_label, section_name)
+
+    # CHA-276: register uncategorised pseudo-categories if present
+    if "_uncategorised_income" in category_monthly:
+        cat_meta["_uncategorised_income"] = ("Uncategorised", "income")
+    if "_uncategorised_expenses" in category_monthly:
+        cat_meta["_uncategorised_expenses"] = ("Uncategorised", "expenses")
 
     # Prorate annual budget
     budget_months = 1 if view_mode == "month" else end_month
