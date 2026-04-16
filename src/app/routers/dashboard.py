@@ -39,6 +39,8 @@ def _category_to_row(cat, section: str) -> dict:
         "_variance_negative": (
             cat.variance_dollar < 0 if section == "income" else cat.variance_dollar > 0
         ),
+        "_category_key": cat.category_key,
+        "_section": section,
     }
 
 
@@ -160,6 +162,9 @@ async def category_drilldown(
     request: Request,
     section: str,
     category_key: str,
+    year: int = Query(default=None),
+    month: int = Query(default=None, ge=1, le=12),
+    view: str = Query(default="month"),
 ):
     """Return htmx partial with account-level detail for a category (CHA-269).
 
@@ -171,7 +176,10 @@ async def category_drilldown(
     user = getattr(request.state, "user", None)
     role = user.role if user else "staff"
 
-    drilldown = get_category_drilldown(section, category_key, role=role)
+    drilldown = get_category_drilldown(
+        section, category_key, role=role,
+        year=year, end_month=month, view_mode=view,
+    )
 
     if drilldown is None:
         return HTMLResponse("<p class='text-caption text-neutral p-4'>Category not found.</p>")

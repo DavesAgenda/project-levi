@@ -180,8 +180,13 @@
           <td colspan="{% if data.view_mode == 'ytd' %}{{ data.month_labels|length + 5 }}{% else %}5{% endif %}">Income</td>
         </tr>
         {% for row in data.income_rows %}
-        <tr>
-          <td>{{ row.budget_label }}</td>
+        <tr class="cursor-pointer hover:bg-muted/50" data-drilldown-url="/dashboard/drilldown/income/{{ row.category_key }}?year={{ selected_year }}&month={{ selected_month }}&view={{ selected_view }}">
+          <td>
+            <svg class="drilldown-chevron inline-block w-4 h-4 mr-1 -ml-1 transition-transform duration-200 text-neutral align-middle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+            {{ row.budget_label }}
+          </td>
           {% if data.view_mode == "ytd" %}
           {% for mk in data.month_keys %}
           <td>{{ "${:,.0f}".format(row.monthly_actuals.get(mk, 0)) }}</td>
@@ -222,8 +227,13 @@
           <td colspan="{% if data.view_mode == 'ytd' %}{{ data.month_labels|length + 5 }}{% else %}5{% endif %}">Expenses</td>
         </tr>
         {% for row in data.expense_rows %}
-        <tr>
-          <td>{{ row.budget_label }}</td>
+        <tr class="cursor-pointer hover:bg-muted/50" data-drilldown-url="/dashboard/drilldown/expenses/{{ row.category_key }}?year={{ selected_year }}&month={{ selected_month }}&view={{ selected_view }}">
+          <td>
+            <svg class="drilldown-chevron inline-block w-4 h-4 mr-1 -ml-1 transition-transform duration-200 text-neutral align-middle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+            {{ row.budget_label }}
+          </td>
           {% if data.view_mode == "ytd" %}
           {% for mk in data.month_keys %}
           <td>{{ "${:,.0f}".format(row.monthly_actuals.get(mk, 0)) }}</td>
@@ -300,4 +310,49 @@
   </p>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  var tables = document.querySelectorAll('.report-table');
+  tables.forEach(function(table) {
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
+    tbody.addEventListener('click', function(e) {
+      var row = e.target.closest('tr[data-drilldown-url]');
+      if (!row) return;
+
+      var nextRow = row.nextElementSibling;
+      if (nextRow && nextRow.classList.contains('drilldown-row')) {
+        nextRow.remove();
+        var ch = row.querySelector('.drilldown-chevron');
+        if (ch) ch.style.transform = '';
+        return;
+      }
+
+      var url = row.dataset.drilldownUrl;
+      var colCount = row.children.length;
+      var detailRow = document.createElement('tr');
+      detailRow.className = 'drilldown-row';
+      var td = document.createElement('td');
+      td.setAttribute('colspan', colCount);
+      td.className = 'p-0';
+      td.innerHTML = '<div class="flex items-center justify-center py-4">' +
+        '<svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">' +
+        '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
+        '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>' +
+        '</svg></div>';
+      detailRow.appendChild(td);
+      row.after(detailRow);
+
+      var chevron = row.querySelector('.drilldown-chevron');
+      if (chevron) chevron.style.transform = 'rotate(90deg)';
+
+      htmx.ajax('GET', url, {target: td, swap: 'innerHTML'});
+    });
+  });
+})();
+</script>
 {% endblock %}

@@ -1,3 +1,4 @@
+<div class="border-t border-outline/30 px-2 py-2">
 {% if drilldown.detail_level == "summary" %}
 <div class="px-6 py-3 bg-gray-50 text-caption text-neutral">
   Summary view only. Contact your administrator for detailed breakdown.
@@ -10,7 +11,14 @@
       <tr class="bg-gray-50">
         <th class="px-4 py-2 text-left text-caption font-semibold text-neutral">Code</th>
         <th class="px-4 py-2 text-left text-caption font-semibold text-neutral">Account</th>
-        <th class="px-4 py-2 text-right text-caption font-semibold text-neutral">Amount</th>
+        {% if drilldown.month_keys %}
+        {% for label in drilldown.month_labels %}
+        <th class="px-4 py-2 text-right text-caption font-semibold text-neutral">{{ label }}</th>
+        {% endfor %}
+        {% endif %}
+        <th class="px-4 py-2 text-right text-caption font-semibold text-neutral">
+          {% if drilldown.month_keys %}YTD{% endif %} Amount
+        </th>
         <th class="px-4 py-2 text-right text-caption font-semibold text-neutral">Txns</th>
         <th class="px-4 py-2 text-center text-caption font-semibold text-neutral">Type</th>
       </tr>
@@ -18,9 +26,16 @@
     <tbody class="divide-y divide-outline">
       {% for acct in drilldown.accounts %}
       <tr class="hover:bg-gray-50 transition-colors">
-        <td class="px-4 py-2 text-figure font-mono text-text whitespace-nowrap">{{ acct.code }}</td>
+        <td class="px-4 py-2 text-figure font-mono text-text whitespace-nowrap">{{ acct.code or "—" }}</td>
         <td class="px-4 py-2 text-figure text-text">{{ acct.name }}</td>
-        <td class="px-4 py-2 text-figure font-mono text-right whitespace-nowrap
+        {% if drilldown.month_keys %}
+        {% for mk in drilldown.month_keys %}
+        <td class="px-4 py-2 text-figure font-mono text-right whitespace-nowrap">
+          ${{ "{:,.0f}".format(acct.monthly_amounts.get(mk, 0)) }}
+        </td>
+        {% endfor %}
+        {% endif %}
+        <td class="px-4 py-2 text-figure font-mono text-right whitespace-nowrap font-bold
             {% if acct.net_amount >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
           ${{ "{:,.2f}".format(acct.net_amount) }}
         </td>
@@ -36,7 +51,7 @@
 
       {% if drilldown.detail_level == "transactions" and acct.transactions %}
       <tr>
-        <td colspan="5" class="px-0 py-0">
+        <td colspan="{{ 5 + (drilldown.month_keys|length if drilldown.month_keys else 0) }}" class="px-0 py-0">
           <div class="ml-8 mr-4 mb-2 bg-gray-50 rounded-btn overflow-hidden">
             <table class="min-w-full">
               <thead>
@@ -71,6 +86,13 @@
     <tfoot>
       <tr class="bg-gray-50 font-semibold">
         <td class="px-4 py-2 text-figure text-text" colspan="2">Total</td>
+        {% if drilldown.month_keys %}
+        {% for mk in drilldown.month_keys %}
+        <td class="px-4 py-2 text-figure font-mono text-right text-text">
+          ${{ "{:,.0f}".format(drilldown.monthly_totals.get(mk, 0)) }}
+        </td>
+        {% endfor %}
+        {% endif %}
         <td class="px-4 py-2 text-figure font-mono text-right text-text">${{ "{:,.2f}".format(drilldown.net_amount) }}</td>
         <td class="px-4 py-2" colspan="2"></td>
       </tr>
@@ -83,3 +105,4 @@
   No account data available for this category.
 </div>
 {% endif %}
+</div>
