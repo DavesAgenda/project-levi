@@ -20,7 +20,7 @@ This tool is for **volunteer church administrators** — wardens and a treasurer
 - **Property investment visibility** — net yield per property (rent minus costs, management fees, levy)
 - **Payroll clarity** — diocese salary scales are opaque; the tool should make staff costs understandable
 - **AGM-ready outputs** — the reports a parish council actually needs, not generic P&L statements
-- **Budget planning for non-accountants** — "what if we have a vacancy at Example Road 35?" as a simple scenario, not a spreadsheet formula exercise
+- **Budget planning for non-accountants** — "what if we have a vacancy at one of the rental properties?" as a simple scenario, not a spreadsheet formula exercise
 
 The rector and wardens need to see where the church stands financially and make informed decisions. The treasurer needs to reconcile with Xero and prepare reports without manually copying numbers between spreadsheets.
 
@@ -141,11 +141,11 @@ income:
   property_income:
     budget_label: "2 - Housing Income"
     accounts:
-      - { code: "20060", name: "Example Street 6 Rent" }
-      - { code: "20010", name: "Example Avenue 33 Rent" }
-      - { code: "20040", name: "Example Road 33 Rent" }
-      - { code: "20020", name: "Example Road 35 Rent" }
-      - { code: "20030", name: "Example Road 39 Rent" }
+      - { code: "20060", name: "Property 1 Rent" }
+      - { code: "20010", name: "Property 2 Rent" }
+      - { code: "20040", name: "Property 3 Rent" }
+      - { code: "20020", name: "Property 4 Rent" }
+      - { code: "20030", name: "Property 5 Rent" }
     legacy_accounts:
       - { code: "12050", name: "Rectory Rent" }        # Archived
       - { code: "20070", name: "40 Hunter Street Rent" } # Archived
@@ -285,11 +285,11 @@ expenses:
       - { code: "44602", name: "Rectory Repairs & Maint" }
       - { code: "44610", name: "Cleaning and Waste Removal" }
     property_costs:  # Per-property cost tracking
-      - { code: "89010", name: "Example Avenue 33 Costs" }
-      - { code: "89020", name: "Example Road 35 Costs" }
-      - { code: "89030", name: "Example Road 39 Costs" }
-      - { code: "89040", name: "Example Road 33 Costs" }
-      - { code: "89050", name: "Example Street 6 Costs" }
+      - { code: "89010", name: "Property 2 Costs" }
+      - { code: "89020", name: "Property 4 Costs" }
+      - { code: "89030", name: "Property 5 Costs" }
+      - { code: "89040", name: "Property 3 Costs" }
+      - { code: "89050", name: "Property 1 Costs" }
 
   diocesan:
     budget_label: "Diocesan Costs"
@@ -306,68 +306,44 @@ expenses:
 Encodes the rental calculation assumptions separately from actuals. Each property also links to its Xero cost account for net yield calculation.
 
 ```yaml
-# config/properties.yaml
+# config/properties.yaml (illustrative — real file is gitignored)
 properties:
-  goodhew_6:
-    address: "6 Example Street"
-    tenant: "TenantA"
-    weekly_rate: 720
+  example_1:
+    address: "1 Example Street"
+    tenant: "Tenant A"
+    weekly_rate: 700
     weeks_per_year: 48
     management_fee_pct: 0.055
     status: occupied
-    income_account: "20060"      # Example Street 6 Rent
-    cost_account: "89050"        # Example Street 6 Costs
-    land_asset: "65010"          # Land value: $PLACEHOLDER
-    building_asset: "66010"      # Building value: $PLACEHOLDER
+    income_account: "20060"
+    cost_account: "89050"
+    land_asset: "65010"          # Land value: placeholder
+    building_asset: "66010"      # Building value: placeholder
     notes: "Less management fee"
 
-  hamilton_33:
-    address: "33 Example Avenue"
-    tenant: "ExampleStaffB"
+  example_2:
+    address: "2 Example Avenue"
+    tenant: "Warden"
     weekly_rate: 0
     weeks_per_year: 48
     management_fee_pct: 0
-    status: occupied_warden      # Warden-occupied, no rental income
+    status: occupied_warden
     income_account: "20010"
     cost_account: "89010"
-    land_asset: "65003"          # Investment in Example Avenue: $PLACEHOLDER
-    notes: "ExampleStaffB occupied — costs only, no rental income"
+    land_asset: "65003"
+    notes: "Warden-occupied — costs only, no rental income"
 
-  loane_33:
-    address: "33 Example Road"
-    tenant: "TenantB"
-    weekly_rate: 675
+  example_3:
+    address: "3 Example Road"
+    tenant: "Tenant B"
+    weekly_rate: 650
     weeks_per_year: 48
     management_fee_pct: 0.055
     status: occupied
     income_account: "20040"
     cost_account: "89040"
-    land_asset: "65007"          # Land value: $PLACEHOLDER
-    building_asset: "66007"      # Building value: $PLACEHOLDER
-
-  loane_35:
-    address: "35 Example Road"
-    tenant: "TenantC"
-    weekly_rate: 780
-    weeks_per_year: 48
-    management_fee_pct: 0.055
-    status: occupied
-    income_account: "20020"
-    cost_account: "89020"
-    land_asset: "65008"          # Land value: $PLACEHOLDER
-    building_asset: "66008"      # Building value: $PLACEHOLDER
-
-  loane_39:
-    address: "39 Example Road"
-    tenant: "Mach"
-    weekly_rate: 600
-    weeks_per_year: 48
-    management_fee_pct: 0.055
-    status: occupied
-    income_account: "20030"
-    cost_account: "89030"
-    land_asset: "65009"          # Land value: $PLACEHOLDER
-    building_asset: "66009"      # Building value: $PLACEHOLDER
+    land_asset: "65007"
+    building_asset: "66007"
 
 # Computed budget for each property:
 # annual_budget = weekly_rate * weeks_per_year * (1 - management_fee_pct)
@@ -380,23 +356,23 @@ properties:
 References diocese-published salary standards.
 
 ```yaml
-# config/payroll.yaml
+# config/payroll.yaml (illustrative — real file is gitignored)
 diocese_scales:
-  source: "Sydney Anglican Diocese Stipend & Salary Standards"
+  source: "Diocese Stipend & Salary Standards"
   year: 2026
-  uplift_factor: 0.012   # 1.2% annual adjustment
-  notes: "Zero Jan-Jun, 2.4% Jul-Dec (equivalent to 1.2% annual)"
+  uplift_factor: 0.012
+  notes: "Annual adjustment"
 
 staff:
-  - name: "ExampleStaffA M"
+  - name: "Example Staff A"
     role: "Permanent"
-    fte: 0.8333
+    fte: 0.8
     base_salary: 70000
     super_rate: 0.115
     workers_comp: 1300
     recoveries: []
 
-  - name: "ExampleStaffB D"
+  - name: "Example Staff B"
     role: "Rector"
     grade: "Accredited"
     fte: 1.0
@@ -405,7 +381,7 @@ staff:
     fixed_travel: 9000
     recoveries: []
 
-  - name: "ExampleStaffC M"
+  - name: "Example Staff C"
     role: "Lay Minister"
     grade: "3rd Yr Asst"
     fte: 1.0
@@ -413,10 +389,10 @@ staff:
     pcr: 15000
     fixed_travel: 9000
     recoveries:
-      - name: "ExampleRecovery"
+      - name: "Example Recovery"
         amount: -15000
 
-  # Children's ministry, student positions, etc.
+  # Additional roles as needed
 ```
 
 ### Budget File (`budgets/2026.yaml`)
@@ -431,65 +407,63 @@ approved_date: 2026-02-15
 
 income:
   offertory:
-    "10001_offering_eft": 100000          # Planning target — 17% YoY growth
-    "10010_offertory_cash": 0             # Transitioning to all-EFT
-    "10020_tap_offertory": 0              # New channel, not yet budgeted
-    "10500_thanksgiving": 0               # Unpredictable, not budgeted
+    "10001_offering_eft": 100000          # Placeholder planning target
+    "10010_offertory_cash": 0
+    "10020_tap_offertory": 0
+    "10500_thanksgiving": 0
 
   property_income:
-    # References config/properties.yaml — override only what differs from config
     overrides:
-      hamilton_33:
-        weekly_rate: 0                    # Warden-occupied, no income
-      loane_39:
-        weekly_rate: 600                  # Below market, review mid-year
-    vacancy_weeks: {}                     # Per-property vacancy adjustments if needed
+      example_2:
+        weekly_rate: 0
+      example_3:
+        weekly_rate: 500
+    vacancy_weeks: {}
 
   building_hire:
-    "12500_hall_hire": 0                  # Not budgeting for 2026
+    "12500_hall_hire": 0
 
   ministry_income:
-    "30000_ministry_income": 1500         # Consolidated — was Playtime + events
-    notes: "Primarily Playtime income, tracked via Xero tracking codes"
+    "30000_ministry_income": 1000         # Consolidated account
+    notes: "Ministry income tracked via Xero tracking codes"
 
   other_income:
-    "12200_interest_income": 3000
+    "12200_interest_income": 2000
     "12100_surplice_fees": 0
-    "30100_building_donations": 0         # One-off 2025, not budgeted recurring
+    "30100_building_donations": 0
 
 expenses:
   payroll:
-    # References config/payroll.yaml — uses diocese 2026 salary standards
-    notes: "Based on diocese published standards. See payroll.yaml for per-staff detail."
+    notes: "See payroll.yaml for per-staff detail."
 
   ministry_expenses:
-    "41000_ministry_expenses": null       # TBD — consolidated account, first year
+    "41000_ministry_expenses": null
 
   mission_giving:
-    "42501_church_budget": 8500
-    "42502_other_missions": 2500
-    notes: "Total $11,000 — ExampleRecovery, GRN (ExampleOrg1, ExampleOrg2), CMS (ExampleOrg3)"
+    "42501_church_budget": 5000
+    "42502_other_missions": 2000
+    notes: "Mission giving line items"
 
   administration:
     "41505_accounting_legal": null
-    "41520_software_licencing": 2000
-    "41525_copyright": 1100
-    notes: "Individual line items TBD from prior year actuals"
+    "41520_software_licencing": 1500
+    "41525_copyright": 1000
+    notes: "Individual line items from prior year actuals"
 
   operations:
-    "43040_rates_utilities": null          # TBD
+    "43040_rates_utilities": null
     "43070_service_setup": null
     "43085_training": null
     "44610_cleaning": null
 
   property_maintenance:
     "44601_repairs_maintenance": null
-    notes: "Varies significantly year to year — budget based on 3-year average"
+    notes: "Varies year to year — budget based on 3-year average"
 
   diocesan:
-    "44901_land_acquisition": 5500        # Fairly stable
-    "44902_diocesan_admin": 23000         # Fairly stable
-    "44903_property_levy": null           # Varies with property income
+    "44901_land_acquisition": 5000
+    "44902_diocesan_admin": 20000
+    "44903_property_levy": null
 ```
 
 ---
@@ -631,7 +605,7 @@ The church holds 5 investment properties plus the church/rectory site. Currently
 
 The property manager view brings all of this together:
 
-**Per-property P&L.** For each property, show: gross rent received (from Xero actuals), management fees deducted, maintenance/repair costs (from 89xxx accounts), share of property receipts levy, and net income. This answers: "Is Example Road 39 actually making us money after that $16K in costs this year?"
+**Per-property P&L.** For each property, show: gross rent received (from Xero actuals), management fees deducted, maintenance/repair costs (from 89xxx accounts), share of property receipts levy, and net income. This answers: "Is this property actually making us money after maintenance costs this year?"
 
 **Budget vs actual per property.** The budget assumes weekly rate × 48 weeks × (1 - mgmt fee). The actual may differ due to vacancies, late payments, or rate changes mid-year. Show the variance.
 
@@ -639,7 +613,7 @@ The property manager view brings all of this together:
 
 **What-if scenarios.** Model the impact of: a vacancy (set weeks to 0 for a property), a rent increase (change weekly rate), a major repair (add one-off cost), or selling a property (remove from portfolio and show impact on total income).
 
-**Historical property costs.** Looking at the trial balance, property costs vary wildly year to year (e.g. Hamilton St 33 went from $36 in 2024 to $PLACEHOLDER in 2025, Example Road 39 from $PLACEHOLDER to $PLACEHOLDER). Surfacing 3-year rolling averages helps set realistic maintenance budgets.
+**Historical property costs.** Property maintenance costs vary wildly year to year in the trial balance. Surfacing 3-year rolling averages helps set realistic maintenance budgets.
 
 ### Views
 
