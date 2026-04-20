@@ -18,3 +18,17 @@ data/historical/*.csv
 
 # Snapshot data — generated, not committed (except pinned AGM snapshots)
 data/snapshots/*.json
+
+# Financial data — never commit actual numbers
+budgets/*.yaml
+budgets/*.json
+!budgets/*.sample.yaml
+!budgets/README.md
+config/payroll.yaml
+config/properties.yaml
+!config/*.sample.yaml
+
+# Sync scratch + dev error logs
+data/sync/
+reload_err.txt
+server_err*.txt

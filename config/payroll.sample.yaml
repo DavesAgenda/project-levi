@@ -1,0 +1,37 @@
+# config/payroll.sample.yaml
+# Template payroll file. Copy to config/payroll.yaml and fill in real staff.
+# Real payroll file is gitignored — this template preserves the schema.
+diocese_scales:
+  source: "Diocese Stipend & Salary Standards"
+  year: 2026
+  uplift_factor: 0.012
+  notes: "Annual uplift applied to base salaries"
+
+staff:
+  - name: "Example Staff A"
+    role: "Permanent"
+    fte: 0.8
+    base_salary: 70000
+    super_rate: 0.115
+    workers_comp: 1300
+    recoveries: []
+
+  - name: "Example Staff B"
+    role: "Rector"
+    grade: "Accredited"
+    fte: 1.0
+    base_salary: 80000
+    pcr: 20000
+    fixed_travel: 9000
+    recoveries: []
+
+  - name: "Example Staff C"
+    role: "Lay Minister"
+    grade: "3rd Yr Asst"
+    fte: 1.0
+    base_salary: 70000
+    pcr: 15000
+    fixed_travel: 9000
+    recoveries:
+      - name: "Example Recovery"
+        amount: -15000

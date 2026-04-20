@@ -1,0 +1,66 @@
+# budgets/2026.sample.yaml
+# Template budget file. Copy to budgets/2026.yaml and fill in real numbers.
+# Real budget files are gitignored — this template preserves the schema.
+year: 2026
+status: draft
+approved_date: 2026-01-01
+
+income:
+  offertory:
+    "10001_offering_eft": 100000
+    "10010_offertory_cash": 0
+    "10020_tap_offertory": 0
+    "10500_thanksgiving": 0
+
+  property_income:
+    overrides:
+      example_property_1:
+        weekly_rate: 0
+      example_property_2:
+        weekly_rate: 500
+    vacancy_weeks: {}
+
+  building_hire:
+    "12500_hall_hire": 0
+
+  ministry_income:
+    "30000_ministry_income": 1000
+    notes: "Ministry income tracked via Xero tracking codes"
+
+  other_income:
+    "12200_interest_income": 2000
+    "12100_surplice_fees": 0
+    "30100_building_donations": 0
+
+expenses:
+  payroll:
+    notes: "See payroll.yaml for per-staff detail."
+
+  ministry_expenses:
+    "41000_ministry_expenses": null
+
+  mission_giving:
+    "42501_church_budget": 5000
+    "42502_other_missions": 2000
+    notes: "Mission giving line items"
+
+  administration:
+    "41505_accounting_legal": null
+    "41520_software_licencing": 1500
+    "41525_copyright": 1000
+    notes: "Individual line items from prior year actuals"
+
+  operations:
+    "43040_rates_utilities": null
+    "43070_service_setup": null
+    "43085_training": null
+    "44610_cleaning": null
+
+  property_maintenance:
+    "44601_repairs_maintenance": null
+    notes: "Varies year to year — budget based on 3-year average"
+
+  diocesan:
+    "44901_land_acquisition": 5000
+    "44902_diocesan_admin": 20000
+    "44903_property_levy": null

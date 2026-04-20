@@ -1,0 +1,33 @@
+# config/properties.sample.yaml
+# Template properties file. Copy to config/properties.yaml and fill in real properties.
+# Real properties file is gitignored — this template preserves the schema.
+properties:
+  example_1:
+    address: "1 Example Street"
+    tenant: "Tenant A"
+    weekly_rate: 700
+    weeks_per_year: 48
+    management_fee_pct: 0.055
+    status: occupied
+    income_account: "20010"
+    cost_account: "89010"
+    land_asset: "65001"
+    building_asset: "66001"
+    notes: "Less management fee"
+
+  example_2:
+    address: "2 Example Avenue"
+    tenant: "Warden"
+    weekly_rate: 0
+    weeks_per_year: 48
+    management_fee_pct: 0
+    status: occupied_warden
+    income_account: "20020"
+    cost_account: "89020"
+    land_asset: "65002"
+    notes: "Warden occupied — costs only, no rental income"
+
+# Computed budget for each property:
+# annual_budget = weekly_rate * weeks_per_year * (1 - management_fee_pct)
+#
+# Net yield = (actual_rent - actual_costs - mgmt_fee - property_levy_share) / (land + building value)
