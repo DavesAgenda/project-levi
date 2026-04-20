@@ -51,7 +51,7 @@ def payroll_yaml(tmp_path: Path) -> Path:
             pcr: 20000
             fixed_travel: 9000
             recoveries:
-              - name: "ExampleRecovery"
+              - name: "RCEA"
                 amount: -15000
     """)
     path = tmp_path / "payroll.yaml"
@@ -70,7 +70,7 @@ def payroll_snapshot() -> FinancialSnapshot:
         rows=[
             # Income
             SnapshotRow(account_code="10001", account_name="Offering EFT", amount=62500.0),
-            SnapshotRow(account_code="20060", account_name="Example Street 6 Rent", amount=7800.0),
+            SnapshotRow(account_code="20060", account_name="Goodhew Street 6 Rent", amount=7800.0),
             # Ministry staff payroll (40100-40199)
             SnapshotRow(account_code="40100", account_name="Ministry Staff Salaries", amount=38500.0),
             SnapshotRow(account_code="40105", account_name="Ministry Staff PCR", amount=4200.0),

@@ -56,7 +56,7 @@ SAMPLE_CONFIG = textwrap.dedent("""\
         pcr: 20000
         fixed_travel: 9000
         recoveries:
-          - name: "ExampleRecovery"
+          - name: "RCEA"
             amount: -10000
 """)
 

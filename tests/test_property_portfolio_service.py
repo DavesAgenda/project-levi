@@ -28,8 +28,8 @@ def properties_yaml(tmp_path: Path) -> Path:
     content = dedent("""\
         properties:
           goodhew_6:
-            address: "6 Example Street"
-            tenant: "TenantA"
+            address: "6 Goodhew Street"
+            tenant: "Wilsons"
             weekly_rate: 720
             weeks_per_year: 48
             management_fee_pct: 0.055
@@ -40,8 +40,8 @@ def properties_yaml(tmp_path: Path) -> Path:
             building_asset: "66010"
 
           hamilton_33:
-            address: "33 Example Avenue"
-            tenant: "ExampleStaffB"
+            address: "33 Hamilton Street"
+            tenant: "Walmsley"
             weekly_rate: 0
             weeks_per_year: 48
             management_fee_pct: 0
@@ -51,8 +51,8 @@ def properties_yaml(tmp_path: Path) -> Path:
             land_asset: "65003"
 
           loane_33:
-            address: "33 Example Road"
-            tenant: "TenantB"
+            address: "33 Loane Avenue"
+            tenant: "Newmarch"
             weekly_rate: 675
             weeks_per_year: 48
             management_fee_pct: 0.055
@@ -80,10 +80,10 @@ def sample_snapshot() -> FinancialSnapshot:
         rows=[
             SnapshotRow(account_code="20060", account_name="Goodhew St 6 Rent", amount=7800.0),
             SnapshotRow(account_code="20010", account_name="Hamilton St 33 Rent", amount=0.0),
-            SnapshotRow(account_code="20040", account_name="Example Road 33 Rent", amount=6500.0),
+            SnapshotRow(account_code="20040", account_name="Loane Avenue 33 Rent", amount=6500.0),
             SnapshotRow(account_code="89050", account_name="Goodhew St 6 Costs", amount=320.0),
             SnapshotRow(account_code="89010", account_name="Hamilton St 33 Costs", amount=450.0),
-            SnapshotRow(account_code="89040", account_name="Example Road 33 Costs", amount=180.0),
+            SnapshotRow(account_code="89040", account_name="Loane Avenue 33 Costs", amount=180.0),
             SnapshotRow(account_code="44903", account_name="Property Receipts Levy", amount=1800.0),
         ],
     )
@@ -96,9 +96,9 @@ def historical_dir(tmp_path: Path) -> Path:
     hist_dir.mkdir()
     csv_content = dedent("""\
         Account,2023
-        89050 - Example Street 6 Costs,"$3,600.00"
-        89010 - Example Avenue 33 Costs,"$3,500.00"
-        89040 - Example Road 33 Costs,"$2,200.00"
+        89050 - Goodhew Street 6 Costs,"$3,600.00"
+        89010 - Hamilton Street 33 Costs,"$3,500.00"
+        89040 - Loane Avenue 33 Costs,"$2,200.00"
     """)
     (hist_dir / "sample_2023.csv").write_text(csv_content, encoding="utf-8")
     return hist_dir
@@ -202,9 +202,9 @@ class TestComputePropertyPortfolio:
         assert len(result.properties) == 3
 
         # Check property ordering matches YAML order
-        assert result.properties[0].address == "6 Example Street"
-        assert result.properties[1].address == "33 Example Avenue"
-        assert result.properties[2].address == "33 Example Road"
+        assert result.properties[0].address == "6 Goodhew Street"
+        assert result.properties[1].address == "33 Hamilton Street"
+        assert result.properties[2].address == "33 Loane Avenue"
 
     def test_goodhew_income_and_costs(
         self, sample_snapshot, properties_yaml, historical_dir,

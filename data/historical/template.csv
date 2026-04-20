@@ -3,11 +3,11 @@ Account,2024
 10010 - Offertory Cash,0.00
 10020 - Tap Offertory,0.00
 10500 - Thanksgiving,0.00
-20060 - Example Street 6 Rent,0.00
-20010 - Example Avenue 33 Rent,0.00
-20040 - Example Road 33 Rent,0.00
-20020 - Example Road 35 Rent,0.00
-20030 - Example Road 39 Rent,0.00
+20060 - Goodhew Street 6 Rent,0.00
+20010 - Hamilton Street 33 Rent,0.00
+20040 - Loane Avenue 33 Rent,0.00
+20020 - Loane Avenue 35 Rent,0.00
+20030 - Loane Avenue 39 Rent,0.00
 12500 - Hall Hire,0.00
 12200 - Interest Income,0.00
 12100 - Surplice Fees (weddings etc),0.00
@@ -37,11 +37,11 @@ Account,2024
 44601 - Repairs & Maintenance,0.00
 44602 - Rectory Repairs & Maint,0.00
 44610 - Cleaning and Waste Removal,0.00
-89010 - Example Avenue 33 Costs,0.00
-89020 - Example Road 35 Costs,0.00
-89030 - Example Road 39 Costs,0.00
-89040 - Example Road 33 Costs,0.00
-89050 - Example Street 6 Costs,0.00
+89010 - Hamilton Street 33 Costs,0.00
+89020 - Loane Avenue 35 Costs,0.00
+89030 - Loane Avenue 39 Costs,0.00
+89040 - Loane Avenue 33 Costs,0.00
+89050 - Goodhew Street 6 Costs,0.00
 44901 - Church Land Acquisition Costs,0.00
 44902 - Diocesan Administrative Costs,0.00
 44903 - Property Receipts Levy,0.00

@@ -57,7 +57,7 @@ SAMPLE_CHART = {
         "property_income": {
             "budget_label": "2 - Housing Income",
             "accounts": [
-                {"code": "20060", "name": "Example Street 6 Rent"},
+                {"code": "20060", "name": "Goodhew Street 6 Rent"},
             ],
         },
     },

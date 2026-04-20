@@ -194,7 +194,7 @@ def load_historical_costs(
             for row in reader:
                 if not row or len(row) < 2:
                     continue
-                # Account column format: "89010 - Example Avenue 33 Costs"
+                # Account column format: "89010 - Hamilton Street 33 Costs"
                 account_field = row[0].strip()
                 if account_field.startswith(cost_account):
                     amount = _parse_csv_amount(row[1])

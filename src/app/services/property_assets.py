@@ -116,7 +116,7 @@ def map_balance_sheet_to_properties(
     land_asset and building_asset codes.
 
     Because Xero balance sheet rows include the account code in the
-    account name (e.g. "Land - 6 Example Street (65010)"), we match
+    account name (e.g. "Land - 6 Goodhew Street (65010)"), we match
     by checking if the configured code appears in the account name
     or if it matches a known UUID.
 

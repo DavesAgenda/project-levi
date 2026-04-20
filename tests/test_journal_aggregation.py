@@ -52,7 +52,7 @@ SAMPLE_CHART_YAML = {
         "property_income": {
             "budget_label": "2 - Housing Income",
             "accounts": [
-                {"code": "20060", "name": "Example Street 6 Rent"},
+                {"code": "20060", "name": "Goodhew Street 6 Rent"},
             ],
         },
     },
@@ -128,7 +128,7 @@ def sample_entries():
             _line("90001", "Main Bank", 3000.0, "BANK"),
         ]),
         _make_entry("j-4", "2026-03-25", [
-            _line("20060", "Example Street 6 Rent", 800.0, "REVENUE"),
+            _line("20060", "Goodhew Street 6 Rent", 800.0, "REVENUE"),
             _line("90001", "Main Bank", -800.0, "BANK"),
         ]),
     ]

@@ -50,7 +50,7 @@ def chart_path(tmp_path: Path) -> Path:
           property_income:
             budget_label: "2 - Housing Income"
             accounts:
-              - { code: "20060", name: "Example Street 6 Rent" }
+              - { code: "20060", name: "Goodhew Street 6 Rent" }
         expenses:
           administration:
             budget_label: "Administration"
@@ -61,7 +61,7 @@ def chart_path(tmp_path: Path) -> Path:
             accounts:
               - { code: "44601", name: "Repairs & Maintenance" }
             property_costs:
-              - { code: "89010", name: "Example Avenue 33 Costs" }
+              - { code: "89010", name: "Hamilton Street 33 Costs" }
     """)
     p = tmp_path / "chart_of_accounts.yaml"
     p.write_text(yaml_content, encoding="utf-8")
@@ -80,10 +80,10 @@ def sample_csv_2023(tmp_path: Path) -> Path:
         Account,2023
         10001 - Offering EFT,"$245,000.00"
         10010 - Offertory Cash,"$12,500.00"
-        20060 - Example Street 6 Rent,"$32,832.00"
+        20060 - Goodhew Street 6 Rent,"$32,832.00"
         41510 - Administrative Expenses,"$4,800.00"
         44601 - Repairs & Maintenance,"$15,000.00"
-        89010 - Example Avenue 33 Costs,"$3,500.00"
+        89010 - Hamilton Street 33 Costs,"$3,500.00"
     """)
     csv_path = tmp_path / "historical" / "pl_2023.csv"
     csv_path.parent.mkdir(parents=True, exist_ok=True)
@@ -97,7 +97,7 @@ def sample_csv_2022(tmp_path: Path) -> Path:
     csv_text = dedent("""\
         Account,2022
         10005 - Offering Family 8AM,"$180,000.00"
-        20060 - Example Street 6 Rent,"$30,000.00"
+        20060 - Goodhew Street 6 Rent,"$30,000.00"
         41510 - Administrative Expenses,"$3,500.00"
     """)
     csv_path = tmp_path / "historical" / "pl_2022.csv"

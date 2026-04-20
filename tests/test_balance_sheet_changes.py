@@ -71,7 +71,7 @@ def _make_bs_response(date_label: str, bank_value: str, land_value: str,
                             {
                                 "RowType": "Row",
                                 "Cells": [
-                                    {"Value": "Land - 6 Example Street",
+                                    {"Value": "Land - 6 Goodhew Street",
                                      "Attributes": [{"Value": "uuid-land", "Id": "account"}]},
                                     {"Value": land_value},
                                 ],
@@ -79,7 +79,7 @@ def _make_bs_response(date_label: str, bank_value: str, land_value: str,
                             {
                                 "RowType": "Row",
                                 "Cells": [
-                                    {"Value": "Buildings - 6 Example Street",
+                                    {"Value": "Buildings - 6 Goodhew Street",
                                      "Attributes": [{"Value": "uuid-bldg", "Id": "account"}]},
                                     {"Value": building_value},
                                 ],

@@ -28,15 +28,15 @@ income:
     budget_label: 2 - Housing Income
     accounts:
     - code: '20060'
-      name: Example Street 6 Rent
+      name: Goodhew Street 6 Rent
     - code: '20010'
-      name: Example Avenue 33 Rent
+      name: Hamilton Street 33 Rent
     - code: '20040'
-      name: Example Road 33 Rent
+      name: Loane Avenue 33 Rent
     - code: '20020'
-      name: Example Road 35 Rent
+      name: Loane Avenue 35 Rent
     - code: '20030'
-      name: Example Road 39 Rent
+      name: Loane Avenue 39 Rent
     legacy_accounts:
     - code: '12050'
       name: Rectory Rent
@@ -247,15 +247,15 @@ expenses:
       name: Cleaning and Waste Removal
     property_costs:
     - code: '89010'
-      name: Example Avenue 33 Costs
+      name: Hamilton Street 33 Costs
     - code: '89020'
-      name: Example Road 35 Costs
+      name: Loane Avenue 35 Costs
     - code: '89030'
-      name: Example Road 39 Costs
+      name: Loane Avenue 39 Costs
     - code: '89040'
-      name: Example Road 33 Costs
+      name: Loane Avenue 33 Costs
     - code: '89050'
-      name: Example Street 6 Costs
+      name: Goodhew Street 6 Costs
   diocesan:
     budget_label: Diocesan Costs
     accounts:

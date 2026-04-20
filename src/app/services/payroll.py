@@ -56,7 +56,7 @@ class StaffCost:
     fixed_travel: float
     workers_comp: float
     allowances: float  # fixed_travel + workers_comp (excludes PCR)
-    recoveries: float  # negative amounts (e.g. ExampleRecovery)
+    recoveries: float  # negative amounts (e.g. RCEA)
     total_cost: float
     diocese_grade: str | None = None
 

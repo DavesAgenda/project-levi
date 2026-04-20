@@ -36,11 +36,11 @@ def full_year_snapshot() -> FinancialSnapshot:
         rows=[
             SnapshotRow(account_code="10001", account_name="Offering EFT", amount=245000.0),
             SnapshotRow(account_code="10010", account_name="Offertory Cash", amount=12500.0),
-            SnapshotRow(account_code="20060", account_name="Example Street 6 Rent", amount=32832.0),
+            SnapshotRow(account_code="20060", account_name="Goodhew Street 6 Rent", amount=32832.0),
             SnapshotRow(account_code="41510", account_name="Administrative Expenses", amount=4800.0),
             SnapshotRow(account_code="41517", account_name="Bank Fees", amount=1200.0),
             SnapshotRow(account_code="44601", account_name="Repairs & Maintenance", amount=15000.0),
-            SnapshotRow(account_code="89010", account_name="Example Avenue 33 Costs", amount=3500.0),
+            SnapshotRow(account_code="89010", account_name="Hamilton Street 33 Costs", amount=3500.0),
         ],
     )
 
@@ -56,7 +56,7 @@ def year_2022_snapshot() -> FinancialSnapshot:
         rows=[
             SnapshotRow(account_code="10001", account_name="Offering EFT", amount=230000.0),
             SnapshotRow(account_code="10010", account_name="Offertory Cash", amount=14000.0),
-            SnapshotRow(account_code="20060", account_name="Example Street 6 Rent", amount=30000.0),
+            SnapshotRow(account_code="20060", account_name="Goodhew Street 6 Rent", amount=30000.0),
             SnapshotRow(account_code="41510", account_name="Administrative Expenses", amount=5200.0),
             SnapshotRow(account_code="41517", account_name="Bank Fees", amount=1100.0),
             SnapshotRow(account_code="44601", account_name="Repairs & Maintenance", amount=12000.0),
@@ -68,7 +68,7 @@ def year_2022_snapshot() -> FinancialSnapshot:
 def budget_data() -> dict[str, float]:
     """Annual budget dict keyed by category_key."""
     return {
-        "offertory": 100000.0,
+        "offertory": 275000.0,
         "property_income": 120000.0,
         "administration": 12000.0,
         "property_maintenance": 24000.0,
@@ -82,7 +82,7 @@ def historical_csv_dir(tmp_path: Path) -> Path:
         Account,2021
         10001 - Offering EFT,"$220,000.00"
         10010 - Offertory Cash,"$15,000.00"
-        20060 - Example Street 6 Rent,"$28,000.00"
+        20060 - Goodhew Street 6 Rent,"$28,000.00"
         41510 - Administrative Expenses,"$4,500.00"
         44601 - Repairs & Maintenance,"$10,000.00"
     """)
@@ -262,7 +262,7 @@ class TestComputeAgmReport:
         )
         offertory = next((r for r in data.income_rows if r.category_key == "offertory"), None)
         assert offertory is not None
-        expected_variance = 257500.0 - 100000.0
+        expected_variance = 257500.0 - 275000.0
         assert offertory.variance_dollar == expected_variance
         assert offertory.variance_pct is not None
 
@@ -413,7 +413,7 @@ class TestAGMCategoryRowStatus:
             budget_label="Offertory",
             section="income",
             actual=300000,
-            budget=100000,
+            budget=275000,
             variance_dollar=25000,
             variance_pct=9.1,
             is_significant=True,
@@ -427,7 +427,7 @@ class TestAGMCategoryRowStatus:
             budget_label="Offertory",
             section="income",
             actual=240000,
-            budget=100000,
+            budget=275000,
             variance_dollar=-35000,
             variance_pct=-12.7,
             is_significant=True,
@@ -441,7 +441,7 @@ class TestAGMCategoryRowStatus:
             budget_label="Offertory",
             section="income",
             actual=270000,
-            budget=100000,
+            budget=275000,
             variance_dollar=-5000,
             variance_pct=-1.8,
             is_significant=False,

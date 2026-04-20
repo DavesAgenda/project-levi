@@ -383,12 +383,12 @@ class TestPayrollBudget:
         result = compute_payroll_budget(payroll_path=payroll_path)
         assert "_total" in result
         assert result["_total"] > 0
-        assert "ExampleStaffB D" in result
+        assert "Walmsley D" in result
 
     def test_includes_recoveries(self, payroll_path: Path):
         result = compute_payroll_budget(payroll_path=payroll_path)
-        # ExampleStaffC has -15000 recovery, should reduce total
-        assert "ExampleStaffC M" in result
+        # Stepniewski has -15000 recovery, should reduce total
+        assert "Stepniewski M" in result
 
 
 # ---------------------------------------------------------------------------

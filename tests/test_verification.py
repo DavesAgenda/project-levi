@@ -49,7 +49,7 @@ MINI_CHART_YAML = dedent("""\
       property_income:
         budget_label: "2 - Housing Income"
         accounts:
-          - { code: "20060", name: "Example Street 6 Rent" }
+          - { code: "20060", name: "Goodhew Street 6 Rent" }
     expenses:
       administration:
         budget_label: "Administration"
@@ -61,7 +61,7 @@ MINI_CHART_YAML = dedent("""\
         accounts:
           - { code: "44601", name: "Repairs & Maintenance" }
         property_costs:
-          - { code: "89010", name: "Example Avenue 33 Costs" }
+          - { code: "89010", name: "Hamilton Street 33 Costs" }
 """)
 
 
@@ -96,11 +96,11 @@ def csv_2023(historical_dir: Path) -> Path:
         Account,2023
         10001 - Offering EFT,"$245,000.00"
         10010 - Offertory Cash,"$12,500.00"
-        20060 - Example Street 6 Rent,"$32,832.00"
+        20060 - Goodhew Street 6 Rent,"$32,832.00"
         41510 - Administrative Expenses,"$4,800.00"
         41517 - Bank Fees,"$1,200.00"
         44601 - Repairs & Maintenance,"$15,000.00"
-        89010 - Example Avenue 33 Costs,"$3,500.00"
+        89010 - Hamilton Street 33 Costs,"$3,500.00"
     """)
     csv_path = historical_dir / "sample_2023.csv"
     csv_path.write_text(csv_content, encoding="utf-8")
@@ -118,11 +118,11 @@ def snapshot_2023_matching(snapshots_dir: Path) -> Path:
         "rows": [
             {"account_code": "10001", "account_name": "Offering EFT", "amount": 245000.00},
             {"account_code": "10010", "account_name": "Offertory Cash", "amount": 12500.00},
-            {"account_code": "20060", "account_name": "Example Street 6 Rent", "amount": 32832.00},
+            {"account_code": "20060", "account_name": "Goodhew Street 6 Rent", "amount": 32832.00},
             {"account_code": "41510", "account_name": "Administrative Expenses", "amount": 4800.00},
             {"account_code": "41517", "account_name": "Bank Fees", "amount": 1200.00},
             {"account_code": "44601", "account_name": "Repairs & Maintenance", "amount": 15000.00},
-            {"account_code": "89010", "account_name": "Example Avenue 33 Costs", "amount": 3500.00},
+            {"account_code": "89010", "account_name": "Hamilton Street 33 Costs", "amount": 3500.00},
         ],
     }
     path = snapshots_dir / "pl_2023-01-01_2023-12-31.json"
@@ -152,11 +152,11 @@ def snapshot_2023_mismatching(snapshots_dir: Path) -> Path:
         "rows": [
             {"account_code": "10001", "account_name": "Offering EFT", "amount": 245000.00},
             {"account_code": "10010", "account_name": "Offertory Cash", "amount": 12550.00},
-            {"account_code": "20060", "account_name": "Example Street 6 Rent", "amount": 33000.00},
+            {"account_code": "20060", "account_name": "Goodhew Street 6 Rent", "amount": 33000.00},
             {"account_code": "41510", "account_name": "Administrative Expenses", "amount": 4805.00},
             # 41517 Bank Fees intentionally missing
             {"account_code": "44601", "account_name": "Repairs & Maintenance", "amount": 15000.00},
-            {"account_code": "89010", "account_name": "Example Avenue 33 Costs", "amount": 3500.00},
+            {"account_code": "89010", "account_name": "Hamilton Street 33 Costs", "amount": 3500.00},
             # Extra account not in CSV
             {"account_code": "10005", "account_name": "Offering Family 8AM", "amount": 800.00},
         ],

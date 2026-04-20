@@ -41,7 +41,7 @@ def chart(tmp_path: Path) -> ChartOfAccounts:
           property_income:
             budget_label: "2 - Housing Income"
             accounts:
-              - { code: "20060", name: "Example Street 6 Rent" }
+              - { code: "20060", name: "Goodhew Street 6 Rent" }
         expenses:
           administration:
             budget_label: "Administration"
@@ -255,7 +255,7 @@ class TestComputeTrendData:
 
         snapshot = _make_snapshot("2023-01-01", "2023-12-31", [
             ("10001", "Offering EFT", 220000.0),
-            ("20060", "Example Street 6 Rent", 32000.0),
+            ("20060", "Goodhew Street 6 Rent", 32000.0),
         ])
         (snap_dir / "pl_2023.json").write_text(
             snapshot.model_dump_json(), encoding="utf-8",
@@ -285,7 +285,7 @@ class TestComputeTrendData:
 
         snapshot = _make_snapshot("2023-01-01", "2023-12-31", [
             ("10001", "Offering EFT", 220000.0),
-            ("20060", "Example Street 6 Rent", 32000.0),
+            ("20060", "Goodhew Street 6 Rent", 32000.0),
         ])
         (snap_dir / "pl_2023.json").write_text(
             snapshot.model_dump_json(), encoding="utf-8",
@@ -317,7 +317,7 @@ class TestComputeTrendData:
         ])
         snap_2024 = _make_snapshot("2024-01-01", "2024-12-31", [
             ("10001", "Offering EFT", 250000.0),
-            ("20060", "Example Street 6 Rent", 35000.0),
+            ("20060", "Goodhew Street 6 Rent", 35000.0),
         ])
         (snap_dir / "pl_2022.json").write_text(
             snap_2022.model_dump_json(), encoding="utf-8",

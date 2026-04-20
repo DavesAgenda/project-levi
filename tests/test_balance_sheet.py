@@ -94,7 +94,7 @@ SAMPLE_BS_RESPONSE = {
                             "RowType": "Row",
                             "Cells": [
                                 {
-                                    "Value": "Land - 6 Example Street (65010)",
+                                    "Value": "Land - 6 Goodhew Street (65010)",
                                     "Attributes": [{"Value": "uuid-land-goodhew", "Id": "account"}],
                                 },
                                 {"Value": "550000.00"},
@@ -104,7 +104,7 @@ SAMPLE_BS_RESPONSE = {
                             "RowType": "Row",
                             "Cells": [
                                 {
-                                    "Value": "Buildings - 6 Example Street (66010)",
+                                    "Value": "Buildings - 6 Goodhew Street (66010)",
                                     "Attributes": [{"Value": "uuid-bldg-goodhew", "Id": "account"}],
                                 },
                                 {"Value": "320000.00"},
@@ -114,7 +114,7 @@ SAMPLE_BS_RESPONSE = {
                             "RowType": "Row",
                             "Cells": [
                                 {
-                                    "Value": "Land - 33 Example Avenue (65003)",
+                                    "Value": "Land - 33 Hamilton Street (65003)",
                                     "Attributes": [{"Value": "uuid-land-hamilton", "Id": "account"}],
                                 },
                                 {"Value": "480000.00"},
@@ -124,7 +124,7 @@ SAMPLE_BS_RESPONSE = {
                             "RowType": "Row",
                             "Cells": [
                                 {
-                                    "Value": "Land - 33 Example Road (65007)",
+                                    "Value": "Land - 33 Loane Avenue (65007)",
                                     "Attributes": [{"Value": "uuid-land-loane33", "Id": "account"}],
                                 },
                                 {"Value": "520000.00"},
@@ -134,7 +134,7 @@ SAMPLE_BS_RESPONSE = {
                             "RowType": "Row",
                             "Cells": [
                                 {
-                                    "Value": "Buildings - 33 Example Road (66007)",
+                                    "Value": "Buildings - 33 Loane Avenue (66007)",
                                     "Attributes": [{"Value": "uuid-bldg-loane33", "Id": "account"}],
                                 },
                                 {"Value": "280000.00"},
@@ -144,7 +144,7 @@ SAMPLE_BS_RESPONSE = {
                             "RowType": "Row",
                             "Cells": [
                                 {
-                                    "Value": "Land - 35 Example Road (65008)",
+                                    "Value": "Land - 35 Loane Avenue (65008)",
                                     "Attributes": [{"Value": "uuid-land-loane35", "Id": "account"}],
                                 },
                                 {"Value": "530000.00"},
@@ -154,7 +154,7 @@ SAMPLE_BS_RESPONSE = {
                             "RowType": "Row",
                             "Cells": [
                                 {
-                                    "Value": "Buildings - 35 Example Road (66008)",
+                                    "Value": "Buildings - 35 Loane Avenue (66008)",
                                     "Attributes": [{"Value": "uuid-bldg-loane35", "Id": "account"}],
                                 },
                                 {"Value": "290000.00"},
@@ -164,7 +164,7 @@ SAMPLE_BS_RESPONSE = {
                             "RowType": "Row",
                             "Cells": [
                                 {
-                                    "Value": "Land - 39 Example Road (65009)",
+                                    "Value": "Land - 39 Loane Avenue (65009)",
                                     "Attributes": [{"Value": "uuid-land-loane39", "Id": "account"}],
                                 },
                                 {"Value": "500000.00"},
@@ -174,7 +174,7 @@ SAMPLE_BS_RESPONSE = {
                             "RowType": "Row",
                             "Cells": [
                                 {
-                                    "Value": "Buildings - 39 Example Road (66009)",
+                                    "Value": "Buildings - 39 Loane Avenue (66009)",
                                     "Attributes": [{"Value": "uuid-bldg-loane39", "Id": "account"}],
                                 },
                                 {"Value": "270000.00"},
@@ -251,22 +251,22 @@ SAMPLE_BS_RESPONSE = {
 SAMPLE_PROPERTIES_YAML = dedent("""\
     properties:
       goodhew_6:
-        address: "6 Example Street"
+        address: "6 Goodhew Street"
         land_asset: "65010"
         building_asset: "66010"
       hamilton_33:
-        address: "33 Example Avenue"
+        address: "33 Hamilton Street"
         land_asset: "65003"
       loane_33:
-        address: "33 Example Road"
+        address: "33 Loane Avenue"
         land_asset: "65007"
         building_asset: "66007"
       loane_35:
-        address: "35 Example Road"
+        address: "35 Loane Avenue"
         land_asset: "65008"
         building_asset: "66008"
       loane_39:
-        address: "39 Example Road"
+        address: "39 Loane Avenue"
         land_asset: "65009"
         building_asset: "66009"
 """)
@@ -275,13 +275,13 @@ SAMPLE_PROPERTIES_YAML = dedent("""\
 SAMPLE_PROPERTIES_MANUAL = dedent("""\
     properties:
       goodhew_6:
-        address: "6 Example Street"
+        address: "6 Goodhew Street"
         land_asset: "65010"
         building_asset: "66010"
         manual_land_value: 550000
         manual_building_value: 320000
       hamilton_33:
-        address: "33 Example Avenue"
+        address: "33 Hamilton Street"
         land_asset: "65003"
         manual_land_value: 480000
 """)

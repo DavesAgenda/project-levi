@@ -82,7 +82,7 @@ Xero API responses stored verbatim as JSON. The app reads snapshots and applies 
   "source": "xero_api",
   "rows": [
     {"account_code": "10001", "account_name": "Offering EFT", "amount": 68750.00},
-    {"account_code": "20060", "account_name": "Example Street 6 Rent", "amount": 32832.00}
+    {"account_code": "20060", "account_name": "Goodhew Street 6 Rent", "amount": 32832.00}
   ]
 }
 ```

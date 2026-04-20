@@ -128,7 +128,7 @@ class TestParseCSV:
         csv_text = dedent("""\
             Account,Jan-24,Feb-24
             10001 - Offering EFT,5000.00,6000.00
-            20060 - Example Street 6 Rent,2500.00,2500.00
+            20060 - Goodhew Street 6 Rent,2500.00,2500.00
         """)
         headers, rows, errors = parse_csv(csv_text)
         assert not errors
@@ -245,7 +245,7 @@ class TestMapRows:
         assert "99999" in unrec[0]
 
     def test_property_costs_mapping(self, chart):
-        rows = [CSVRow(account_code="89010", account_name="Example Avenue 33 Costs", amounts={"Jan": 200})]
+        rows = [CSVRow(account_code="89010", account_name="Hamilton Street 33 Costs", amounts={"Jan": 200})]
         mapped, _, _ = map_rows(rows, chart)
         assert len(mapped) == 1
         assert mapped[0].category_key == "property_maintenance"
@@ -344,12 +344,12 @@ class TestRealChart:
             Account,Jan-26,Feb-26,Mar-26
             10001 - Offering EFT,"$22,916.67","$22,916.67","$22,916.67"
             10010 - Offertory Cash,0.00,0.00,0.00
-            20060 - Example Street 6 Rent,"$2,736.00","$2,736.00","$2,736.00"
-            20010 - Example Avenue 33 Rent,0.00,0.00,0.00
+            20060 - Goodhew Street 6 Rent,"$2,736.00","$2,736.00","$2,736.00"
+            20010 - Hamilton Street 33 Rent,0.00,0.00,0.00
             40100 - Ministry Staff Salaries,"$6,607.75","$6,607.75","$6,607.75"
             41510 - Administrative Expenses,150.00,175.00,200.00
             44601 - Repairs & Maintenance,0.00,"$1,200.00",0.00
-            89010 - Example Avenue 33 Costs,0.00,0.00,450.00
+            89010 - Hamilton Street 33 Costs,0.00,0.00,450.00
             42501 - Mission Giving - Church Budget,708.33,708.33,708.33
             44901 - Church Land Acquisition Costs,458.33,458.33,458.33
         """)

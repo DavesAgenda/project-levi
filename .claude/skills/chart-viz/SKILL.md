@@ -53,7 +53,7 @@ Superman's skill for financial data visualization. Defines chart types, data agg
 ### 6. Property Income vs Costs (Property Portfolio)
 - **Type**: Stacked bar per property
 - **Series**: Gross rent, minus management fee, minus costs, minus levy share = net
-- **Question**: "What's eating into Example Road 39's rental income?"
+- **Question**: "What's eating into Loane Avenue 39's rental income?"
 
 ### 7. Monthly Run Rate (Dashboard)
 - **Type**: Line chart with projection

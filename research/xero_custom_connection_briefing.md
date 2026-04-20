@@ -133,7 +133,7 @@ The response follows Xero's standard report format. Below is a representative ex
             {
               "RowType": "Row",
               "Cells": [
-                { "Value": "Example Street 6 Rent", "Attributes": [{ "Value": "account-id-uuid", "Id": "account" }] },
+                { "Value": "Goodhew Street 6 Rent", "Attributes": [{ "Value": "account-id-uuid", "Id": "account" }] },
                 { "Value": "8294.40", "Attributes": [{ "Value": "account-id-uuid", "Id": "account" }] }
               ]
             },

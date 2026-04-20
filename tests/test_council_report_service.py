@@ -37,7 +37,7 @@ def q1_snapshot() -> FinancialSnapshot:
         rows=[
             SnapshotRow(account_code="10001", account_name="Offering EFT", amount=62500.0),
             SnapshotRow(account_code="10010", account_name="Offertory Cash", amount=1200.0),
-            SnapshotRow(account_code="20060", account_name="Example Street 6 Rent", amount=7800.0),
+            SnapshotRow(account_code="20060", account_name="Goodhew Street 6 Rent", amount=7800.0),
             SnapshotRow(account_code="41510", account_name="Administrative Expenses", amount=680.0),
             SnapshotRow(account_code="41517", account_name="Bank Fees", amount=145.0),
             SnapshotRow(account_code="44601", account_name="Repairs & Maintenance", amount=2800.0),
@@ -79,7 +79,7 @@ def feb_snapshot() -> FinancialSnapshot:
 def budget_data() -> dict[str, float]:
     """Annual budget dict keyed by category_key."""
     return {
-        "offertory": 100000.0,
+        "offertory": 275000.0,
         "property_income": 120000.0,
         "administration": 12000.0,
         "property_maintenance": 24000.0,
@@ -290,7 +290,7 @@ class TestComputeCouncilReport:
         )
         offertory = next((r for r in data.income_rows if r.category_key == "offertory"), None)
         assert offertory is not None
-        # 100000 * 3/12 = 68750
+        # 275000 * 3/12 = 68750
         assert offertory.ytd_budget == 68750.0
 
     def test_variance_calculations(self, chart, tmp_path, q1_snapshot, budget_data):

@@ -67,7 +67,7 @@ SAMPLE_PL_RESPONSE = {
                             "RowType": "Row",
                             "Cells": [
                                 {
-                                    "Value": "Example Street 6 Rent",
+                                    "Value": "Goodhew Street 6 Rent",
                                     "Attributes": [{"Value": "uuid-rent", "Id": "account"}],
                                 },
                                 {
@@ -384,7 +384,7 @@ class TestParseReportBasicPL:
         assert offering.values["30 Mar 2026"] == Decimal("68750.00")
 
         rent = income.rows[1]
-        assert rent.account_name == "Example Street 6 Rent"
+        assert rent.account_name == "Goodhew Street 6 Rent"
         assert rent.account_id == "uuid-rent"
         assert rent.values["30 Mar 2026"] == Decimal("8294.40")
 

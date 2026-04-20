@@ -109,7 +109,7 @@ def chart(tmp_path: Path) -> ChartOfAccounts:
           property_income:
             budget_label: "2 - Housing Income"
             accounts:
-              - { code: "20060", name: "Example Street 6 Rent" }
+              - { code: "20060", name: "Goodhew Street 6 Rent" }
         expenses:
           administration:
             budget_label: "Administration"
@@ -121,7 +121,7 @@ def chart(tmp_path: Path) -> ChartOfAccounts:
             accounts:
               - { code: "44601", name: "Repairs & Maintenance" }
             property_costs:
-              - { code: "89010", name: "Example Avenue 33 Costs" }
+              - { code: "89010", name: "Hamilton Street 33 Costs" }
     """)
     yaml_path = tmp_path / "chart_of_accounts.yaml"
     yaml_path.write_text(yaml_content, encoding="utf-8")
