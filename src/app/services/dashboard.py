@@ -150,14 +150,107 @@ def find_latest_snapshot(
     return None
 
 
+def _load_pl_snapshot_file(path: Path) -> FinancialSnapshot | None:
+    """Parse a P&L JSON file into a FinancialSnapshot, handling both formats."""
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    try:
+        if "report_date" in raw:
+            return FinancialSnapshot(**raw)
+        if "snapshot_metadata" in raw:
+            resp = raw.get("response", {})
+            if "report_date" in resp:
+                return FinancialSnapshot(**resp)
+            return xero_snapshot_to_financial(raw)
+    except (KeyError, TypeError, ValueError):
+        return None
+    return None
+
+
+def _select_canonical_pl_snapshots(
+    snap_dir: Path,
+    year: int,
+    end_month: int | None,
+) -> list[FinancialSnapshot]:
+    """Pick a non-overlapping set of P&L snapshots covering YTD.
+
+    Excludes tracking-split files (filenames containing ``_by-``) — those
+    belong to the tracking-matrix view, not P&L aggregation.
+
+    Handles two legitimate snapshot layouts without double-counting:
+    - Per-month files: ``pl_2026-01-01_2026-01-31``, ``pl_2026-02-01_2026-02-28``…
+    - A single broad range file: ``pl_2026-01-01_2026-03-31``.
+
+    When overlapping candidates exist (e.g. several partial-April syncs, or a
+    YTD-range file plus per-month files), picks the earliest ``from_date``
+    and, on ties, the latest ``to_date``; then skips any later candidate that
+    overlaps an already-picked period.
+    """
+    year_str = str(year)
+    candidates: list[FinancialSnapshot] = []
+
+    for path in snap_dir.glob("pl_*.json"):
+        if "_by-" in path.name:
+            continue
+
+        snap = _load_pl_snapshot_file(path)
+        if snap is None:
+            continue
+
+        if not snap.from_date.startswith(year_str):
+            continue
+
+        try:
+            to_year = int(snap.to_date.split("-")[0])
+            to_month = int(snap.to_date.split("-")[1])
+        except (ValueError, IndexError):
+            continue
+
+        if to_year != year:
+            continue
+        if end_month is not None and to_month > end_month:
+            continue
+
+        candidates.append(snap)
+
+    # Greedy non-overlap: earliest start first; on ties, broadest range first.
+    candidates.sort(key=lambda s: (s.from_date, _neg_key(s.to_date)))
+
+    picked: list[FinancialSnapshot] = []
+    last_to_date = ""
+    for snap in candidates:
+        if snap.from_date <= last_to_date:
+            continue  # overlaps an already-picked snapshot
+        picked.append(snap)
+        if snap.to_date > last_to_date:
+            last_to_date = snap.to_date
+
+    return picked
+
+
+def _neg_key(date_str: str) -> tuple:
+    """Sort helper so that within the same from_date, later to_date comes first."""
+    # Negate each component to reverse sort order for to_date.
+    try:
+        parts = [int(x) for x in date_str.split("-")]
+        return tuple(-p for p in parts)
+    except ValueError:
+        return (0,)
+
+
 def load_ytd_snapshot(
     year: int | None = None,
     directory: Path | None = None,
+    end_month: int | None = None,
 ) -> FinancialSnapshot | None:
-    """Load and merge all monthly P&L snapshots for a given year into one YTD snapshot.
+    """Load and merge canonical monthly P&L snapshots into one YTD snapshot.
 
-    Aggregates rows across all monthly snapshots, summing amounts for each account.
-    Returns a single FinancialSnapshot with the combined YTD totals.
+    Picks one snapshot per month (latest ``to_date`` wins) so that overlapping
+    syncs — e.g. ``pl_2026-04-01_2026-04-07`` and ``pl_2026-04-01_2026-04-20``
+    — don't get double-counted. Tracking-split files (``_by-ministry-funds``,
+    ``_by-congregations`` etc.) and multi-month YTD files are excluded.
     """
     from datetime import date as date_type
 
@@ -166,44 +259,24 @@ def load_ytd_snapshot(
         return None
 
     year = year or date_type.today().year
-    year_str = str(year)
 
-    combined_rows: dict[str, tuple[str, float]] = {}  # code -> (name, total)
+    snapshots = _select_canonical_pl_snapshots(snap_dir, year, end_month)
+    if not snapshots:
+        return None
+
+    combined_rows: dict[str, tuple[str, float]] = {}
     latest_to_date = ""
 
-    for path in sorted(snap_dir.glob("pl_*.json")):
-        try:
-            raw = json.loads(path.read_text(encoding="utf-8"))
-            snap = None
-            if "report_date" in raw:
-                snap = FinancialSnapshot(**raw)
-            elif "snapshot_metadata" in raw:
-                resp = raw.get("response", {})
-                if "report_date" in resp:
-                    snap = FinancialSnapshot(**resp)
-                else:
-                    snap = xero_snapshot_to_financial(raw)
-
-            if snap is None:
-                continue
-
-            # Only include snapshots from the target year
-            if not (snap.from_date.startswith(year_str) or snap.to_date.startswith(year_str)):
-                continue
-
-            if snap.to_date > latest_to_date:
-                latest_to_date = snap.to_date
-
-            for row in snap.rows:
-                key = row.account_code or row.account_name
-                if key in combined_rows:
-                    name, total = combined_rows[key]
-                    combined_rows[key] = (name, total + row.amount)
-                else:
-                    combined_rows[key] = (row.account_name, row.amount)
-
-        except (json.JSONDecodeError, KeyError, TypeError):
-            continue
+    for snap in snapshots:
+        if snap.to_date > latest_to_date:
+            latest_to_date = snap.to_date
+        for row in snap.rows:
+            key = row.account_code or row.account_name
+            if key in combined_rows:
+                name, total = combined_rows[key]
+                combined_rows[key] = (name, total + row.amount)
+            else:
+                combined_rows[key] = (row.account_name, row.amount)
 
     if not combined_rows:
         return None
@@ -259,6 +332,8 @@ def compute_dashboard_data(
     chart: ChartOfAccounts | None = None,
     snapshots_dir: Path | None = None,
     budget_scale: float | None = None,
+    year: int | None = None,
+    end_month: int | None = None,
 ) -> DashboardData:
     """Build complete dashboard data from a snapshot and budget.
 
@@ -272,7 +347,7 @@ def compute_dashboard_data(
             return DashboardData()
 
     if snapshot is None:
-        snapshot = load_ytd_snapshot(directory=snapshots_dir)
+        snapshot = load_ytd_snapshot(year=year, directory=snapshots_dir, end_month=end_month)
 
     if budget is None:
         budget = load_budget(chart=chart)

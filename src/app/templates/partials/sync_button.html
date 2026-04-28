@@ -17,6 +17,21 @@
   </button>
 
   <button
+    hx-post="/api/xero/sync-budget?year=2026"
+    hx-target="#sync-result"
+    hx-swap="innerHTML"
+    hx-indicator="#sync-spinner"
+    class="inline-flex items-center gap-2 border border-primary text-primary font-semibold rounded-btn min-h-btn px-5 py-2 hover:bg-primary hover:text-white transition-colors"
+    title="Pulls Xero's BudgetSummary and backfills nulls/gaps in budgets/2026.yaml"
+  >
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+    </svg>
+    Sync Budget
+  </button>
+
+  <button
     hx-post="/api/xero/sync-historical?from_year=2021&to_year=2026"
     hx-target="#sync-result"
     hx-swap="innerHTML"
@@ -55,6 +70,12 @@ document.body.addEventListener('htmx:afterRequest', function(event) {
   if (event.detail.successful) {
     try {
       var data = JSON.parse(event.detail.xhr.responseText);
+      if (path.indexOf('/sync-budget') !== -1) {
+        target.innerHTML = '<span class="text-success font-medium">Budget synced</span>' +
+          '<span class="text-neutral ml-2">(' + data.account_count + ' accounts, $' +
+          data.total.toLocaleString() + ')</span>';
+        return;
+      }
       if (data.status === 'ok') {
         var detail = data.snapshots.length + ' snapshots, ' + data.duration_seconds + 's';
         if (data.months_synced) detail = data.months_synced + ' months, ' + detail;

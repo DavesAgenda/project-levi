@@ -43,7 +43,7 @@ def _matrix_to_template_context(data: TrackingMatrixData) -> dict:
             "budget_label": row.budget_label,
             "category_key": row.category_key,
             "section": row.section,
-            "values": {k: float(v) for k, v in row.values.items()},
+            "amounts": {k: float(v) for k, v in row.values.items()},
             "total": float(row.total),
         }
 

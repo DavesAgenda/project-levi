@@ -59,8 +59,8 @@
             <td class="px-4 py-2.5 text-text font-body whitespace-nowrap">{{ row.budget_label }}</td>
             {% for col in matrix.column_headers %}
             <td class="px-4 py-2.5 text-right font-mono text-text-body tabular-nums">
-              {% if row.values[col] %}
-                {{ "${:,.0f}".format(row.values[col]) }}
+              {% if row.amounts[col] %}
+                {{ "${:,.0f}".format(row.amounts[col]) }}
               {% else %}
                 <span class="text-neutral/40">-</span>
               {% endif %}
@@ -99,8 +99,8 @@
             <td class="px-4 py-2.5 text-text font-body whitespace-nowrap">{{ row.budget_label }}</td>
             {% for col in matrix.column_headers %}
             <td class="px-4 py-2.5 text-right font-mono text-text-body tabular-nums">
-              {% if row.values[col] %}
-                {{ "${:,.0f}".format(row.values[col]) }}
+              {% if row.amounts[col] %}
+                {{ "${:,.0f}".format(row.amounts[col]) }}
               {% else %}
                 <span class="text-neutral/40">-</span>
               {% endif %}

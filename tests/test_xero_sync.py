@@ -32,6 +32,18 @@ from app.services.sync import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _stub_accounts_cache_refresh():
+    """Every sync now refreshes the Xero accounts UUID->code cache.
+    These tests mock Xero report endpoints directly; stub the accounts
+    fetch too so the helper doesn't try to hit the real API."""
+    with patch(
+        "app.services.sync.fetch_and_cache_accounts",
+        new=AsyncMock(return_value={"Accounts": []}),
+    ):
+        yield
+
+
 # ---------------------------------------------------------------------------
 # Date helper tests
 # ---------------------------------------------------------------------------

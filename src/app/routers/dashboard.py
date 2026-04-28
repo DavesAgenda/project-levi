@@ -50,31 +50,51 @@ async def dashboard(
     request: Request,
     view_mode: str = Query(default="ytd", description="ytd or full_year"),
     source: str = Query(default="auto", description="auto, journals, or snapshots"),
+    budget_mode: str = Query(
+        default="prorated",
+        description="prorated (YTD months/12) or full_year (match Xero Budget Variance)",
+    ),
+    year: int = Query(default=None),
+    month: int = Query(default=None, ge=1, le=12),
 ):
     """Render the main dashboard page with KPI cards, charts, and variance table.
 
     CHA-266: Supports view_mode toggle between YTD (pro-rated) and full_year.
     Also supports journal-based data source when available.
+
+    YTD view accepts year/month to pick a "through month" cutoff so the user
+    can exclude the in-progress current month from comparisons.
     """
+    today = date.today()
+    selected_year = year or today.year
+    selected_month = month or today.month
+
+    # For YTD view, aggregate through end of selected month; otherwise full year
+    end_month = selected_month if view_mode == "ytd" else None
+
     # Try journal-based aggregation first if source allows
     snapshot = None
     if source in ("auto", "journals"):
         try:
-            agg_result = aggregate_ytd()
+            agg_result = aggregate_ytd(year=selected_year, end_month=end_month)
             if agg_result.journal_count > 0:
                 snapshot = aggregation_to_snapshot(agg_result)
         except Exception:
             pass  # Fall through to snapshot-based
 
-    # Compute with optional YTD pro-rating of budget
-    today = date.today()
+    # Compute with optional YTD pro-rating of budget.
+    # budget_mode=full_year skips pro-rating so totals line up with Xero's
+    # "Budget Variance" report (YTD actuals vs full-year budget).
     budget_scale = None
-    if view_mode == "ytd":
-        # Pro-rate budget: months elapsed / 12
-        months_elapsed = today.month
-        budget_scale = months_elapsed / 12.0
+    if view_mode == "ytd" and budget_mode == "prorated":
+        budget_scale = selected_month / 12.0
 
-    data = compute_dashboard_data(snapshot=snapshot, budget_scale=budget_scale)
+    data = compute_dashboard_data(
+        snapshot=snapshot,
+        budget_scale=budget_scale,
+        year=selected_year,
+        end_month=end_month,
+    )
 
     income_rows = [_category_to_row(c, "income") for c in data.income_categories]
     expense_rows = [_category_to_row(c, "expenses") for c in data.expense_categories]
@@ -120,6 +140,10 @@ async def dashboard(
             "xero_connected": xero_connected,
             "view_mode": view_mode,
             "source": source,
+            "budget_mode": budget_mode,
+            "selected_year": selected_year,
+            "selected_month": selected_month,
+            "current_year": today.year,
         },
     )
 

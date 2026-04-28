@@ -24,8 +24,10 @@ from starlette.testclient import TestClient
 from app.main import app
 from app.models import Account, BudgetCategory, ChartOfAccounts
 from app.models.auth import User
+from app.models import FinancialSnapshot, SnapshotRow
 from app.services.account_mapping import (
     add_account,
+    collect_unmapped_from_snapshot,
     create_category,
     delete_category,
     find_unmapped_accounts,
@@ -332,6 +334,70 @@ class TestFindUnmapped:
     def test_empty_input(self, chart_path):
         result = find_unmapped_accounts([], path=chart_path)
         assert result == []
+
+
+# ---------------------------------------------------------------------------
+# Service: collect unmapped from snapshot
+# ---------------------------------------------------------------------------
+
+
+def _snapshot(rows: list[tuple[str, str, float]]) -> FinancialSnapshot:
+    return FinancialSnapshot(
+        report_date="2026-04-01",
+        from_date="2026-01-01",
+        to_date="2026-03-31",
+        source="xero_api",
+        rows=[SnapshotRow(account_code=c, account_name=n, amount=a) for c, n, a in rows],
+    )
+
+
+class TestCollectUnmappedFromSnapshot:
+    def test_none_snapshot_returns_empty(self, chart_path):
+        chart = load_chart(chart_path)
+        assert collect_unmapped_from_snapshot(None, chart=chart) == []
+
+    def test_all_mapped_returns_empty(self, chart_path):
+        chart = load_chart(chart_path)
+        snap = _snapshot([("10001", "Offering EFT", 1500.0)])
+        assert collect_unmapped_from_snapshot(snap, chart=chart) == []
+
+    def test_unmapped_classified_by_code(self, chart_path):
+        chart = load_chart(chart_path)
+        snap = _snapshot([
+            ("15555", "Mystery Income", 800.0),      # 1x -> income
+            ("55555", "Mystery Expense", 1200.0),    # 5x -> expenses
+            ("10001", "Offering EFT", 500.0),        # mapped -> excluded
+        ])
+        result = collect_unmapped_from_snapshot(snap, chart=chart)
+        codes = [u.code for u in result]
+        assert codes == ["15555", "55555"]
+        sections = {u.code: u.section for u in result}
+        assert sections == {"15555": "income", "55555": "expenses"}
+
+    def test_zero_amount_rows_excluded(self, chart_path):
+        chart = load_chart(chart_path)
+        snap = _snapshot([("55555", "Zero Row", 0.0)])
+        assert collect_unmapped_from_snapshot(snap, chart=chart) == []
+
+    def test_summary_rows_excluded(self, chart_path):
+        chart = load_chart(chart_path)
+        snap = _snapshot([
+            ("", "Total Income", 9999.0),
+            ("77777", "Real Unmapped", 250.0),
+        ])
+        result = collect_unmapped_from_snapshot(snap, chart=chart)
+        assert [u.code for u in result] == ["77777"]
+
+    def test_sorted_income_first_then_by_abs_amount(self, chart_path):
+        chart = load_chart(chart_path)
+        snap = _snapshot([
+            ("55555", "Big Expense", 5000.0),     # expenses
+            ("15555", "Small Income", 100.0),     # income
+            ("15556", "Bigger Income", 900.0),    # income
+            ("55556", "Small Expense", 50.0),     # expenses
+        ])
+        result = collect_unmapped_from_snapshot(snap, chart=chart)
+        assert [u.code for u in result] == ["15556", "15555", "55555", "55556"]
 
 
 # ---------------------------------------------------------------------------

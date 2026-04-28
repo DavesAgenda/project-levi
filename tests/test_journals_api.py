@@ -388,6 +388,7 @@ class TestFetchJournals:
 
 
 class TestJournalsScope:
-    def test_journals_scope_included(self):
+    def test_journals_scope_not_included(self):
+        """Journals API requires Xero Advanced tier — scope must not be requested."""
         from app.xero.oauth import XERO_SCOPES
-        assert "accounting.journals.read" in XERO_SCOPES
+        assert "accounting.journals.read" not in XERO_SCOPES

@@ -37,10 +37,12 @@ XERO_CONNECTIONS_URL = "https://api.xero.com/connections"
 XERO_SCOPES = [
     "openid",
     "offline_access",
-    "accounting.journals.read",
     "accounting.reports.profitandloss.read",
     "accounting.reports.trialbalance.read",
     "accounting.reports.balancesheet.read",
+    # /Budgets endpoint for reading Xero-stored budgets by account & period.
+    # Post-2026-03-02 apps can't use the broad accounting.reports.read scope.
+    "accounting.budgets.read",
     "accounting.settings",
 ]
 

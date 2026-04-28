@@ -17,7 +17,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from app.dependencies.auth import get_current_user, require_role
 from app.models.auth import User
+from app.services.journal_sync import sync_journals
 from app.services.sync import sync_historical, sync_monthly, sync_now
+from app.xero.budget_summary import sync_budget_from_xero
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +106,56 @@ async def sync_now_endpoint(
     """
     result = await sync_now()
     return result
+
+
+@router.post("/sync-journals")
+async def sync_journals_endpoint(
+    auth: User | str = Depends(require_api_key_or_admin),
+):
+    """Sync journal entries from Xero for the current year.
+
+    Callable via:
+    - Admin session cookie (browser)
+    - X-API-Key header (n8n / cron automation)
+    """
+    result = await sync_journals()
+    return result
+
+
+@router.post("/sync-budget")
+async def sync_budget_endpoint(
+    auth: User | str = Depends(require_api_key_or_admin),
+    year: int = 2026,
+):
+    """Pull Xero's BudgetSummary for ``year`` and write the overlay file.
+
+    Populated values backfill nulls/gaps in ``budgets/{year}.yaml`` on the
+    next dashboard render.
+    """
+    import httpx
+
+    try:
+        return await sync_budget_from_xero(year)
+    except httpx.HTTPStatusError as exc:
+        body = ""
+        try:
+            body = exc.response.text[:500]
+        except Exception:
+            pass
+        logger.error(
+            "Xero BudgetSummary sync failed: HTTP %s — %s",
+            exc.response.status_code, body,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=f"Xero returned HTTP {exc.response.status_code}: {body}",
+        ) from exc
+    except Exception as exc:
+        logger.exception("Xero BudgetSummary sync failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"{type(exc).__name__}: {exc}",
+        ) from exc
 
 
 @router.post("/sync-historical")

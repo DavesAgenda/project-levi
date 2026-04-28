@@ -14,7 +14,11 @@ from typing import Any
 
 import httpx
 
-from app.xero.oauth import clear_tokens, get_valid_access_token
+from app.xero.oauth import (
+    _load_tokens,
+    _refresh_access_token,
+    get_valid_access_token,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,11 +73,22 @@ async def _xero_request(
                 )
 
                 if response.status_code == 401 and attempt == 0:
-                    # Token may have just expired — clear cache and get fresh one
-                    logger.info("Xero 401 — clearing cached token and retrying")
-                    clear_tokens()
-                    access_token, tenant_id = await get_valid_access_token()
-                    continue
+                    # Token rejected — force-refresh using the stored refresh
+                    # token, but keep the token file intact so a transient 401
+                    # doesn't blow away the user's connection.
+                    logger.info("Xero 401 on %s — refreshing token and retrying", path)
+                    stored = _load_tokens()
+                    refresh_token = (stored or {}).get("refresh_token")
+                    if refresh_token:
+                        try:
+                            refreshed = await _refresh_access_token(refresh_token)
+                            access_token = refreshed["access_token"]
+                            tenant_id = refreshed.get("tenant_id", tenant_id)
+                            continue
+                        except Exception as exc:
+                            logger.warning("Xero refresh failed: %s", exc)
+                    # Fall through to normal retry path; do not clear tokens.
+                    response.raise_for_status()
 
                 if response.status_code in RETRYABLE_STATUS_CODES:
                     retry_after = response.headers.get("Retry-After")
@@ -153,6 +168,39 @@ async def fetch_profit_and_loss(
         params["trackingOptionID"] = tracking_option_id
 
     return await _xero_request("GET", "/Reports/ProfitAndLoss", params=params)
+
+
+async def fetch_budgets() -> dict:
+    """List all budgets configured in the Xero org.
+
+    Returns the raw ``{"Budgets": [...]}`` response. Each budget has a
+    ``BudgetID``, ``Type`` ("OVERALL" / "TRACKING"), ``Description``, and
+    ``UpdatedDateUTC``. Line items are fetched per-budget via ``fetch_budget``.
+
+    Requires the ``accounting.budgets.read`` scope.
+    """
+    return await _xero_request("GET", "/Budgets")
+
+
+async def fetch_budget(
+    budget_id: str,
+    *,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> dict:
+    """Fetch a single budget with its per-account monthly balances.
+
+    Args:
+        budget_id: The Xero BudgetID (UUID).
+        date_from: Optional period start (YYYY-MM-DD).
+        date_to: Optional period end (YYYY-MM-DD).
+    """
+    params: dict[str, Any] = {}
+    if date_from is not None:
+        params["DateFrom"] = date_from
+    if date_to is not None:
+        params["DateTo"] = date_to
+    return await _xero_request("GET", f"/Budgets/{budget_id}", params=params or None)
 
 
 async def fetch_trial_balance(date: str | None = None) -> dict:
@@ -282,3 +330,14 @@ async def fetch_tracking_categories() -> dict:
     needed for P&L breakdown by ministry activity.
     """
     return await _xero_request("GET", "/TrackingCategories")
+
+
+async def fetch_accounts() -> dict:
+    """Fetch the full chart of accounts from Xero.
+
+    Returns the raw API response containing every account with
+    AccountID (UUID), Code, Name, Status, Type, etc. Used to build a
+    UUID -> code lookup so P&L rows missing a numeric code can still
+    be mapped deterministically.
+    """
+    return await _xero_request("GET", "/Accounts")

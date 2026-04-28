@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from app.models import FinancialSnapshot, SnapshotRow
+from app.xero.accounts import load_uuid_to_code
 from app.xero.parser import parse_report
 
 logger = logging.getLogger(__name__)
@@ -102,9 +103,19 @@ def save_pl_snapshot(
     from_date: str,
     to_date: str,
     tracking: bool = False,
+    tracking_category_name: str | None = None,
 ) -> Path:
-    """Save a P&L report snapshot."""
-    suffix = "by-ministry" if tracking else None
+    """Save a P&L report snapshot.
+
+    For tracking breakdowns, include the category name in the filename
+    so Congregations and Ministry & Funds don't overwrite each other.
+    """
+    if tracking:
+        # Slugify category name for filename (e.g. "Ministry & Funds" -> "ministry-funds")
+        slug = re.sub(r"[^a-z0-9]+", "-", (tracking_category_name or "tracking").lower()).strip("-")
+        suffix = f"by-{slug}"
+    else:
+        suffix = None
     return save_snapshot(data, "pl", from_date, to_date, suffix=suffix)
 
 
@@ -169,17 +180,25 @@ def xero_snapshot_to_financial(raw: dict[str, Any]) -> FinancialSnapshot | None:
         logger.warning("Failed to parse Xero report from snapshot")
         return None
 
+    uuid_lookup = load_uuid_to_code()
     name_lookup = _build_name_lookup()
 
     rows: list[SnapshotRow] = []
     for section in parsed.sections:
         for row in section.rows:
             amount = float(next(iter(row.values.values()), Decimal("0")))
-            code = name_lookup.get(_normalise(row.account_name), "")
+            # Prefer UUID lookup (deterministic, idempotent); fall back to
+            # fuzzy name match against chart_of_accounts.yaml.
+            code = ""
+            if row.account_id and row.account_id in uuid_lookup:
+                code = uuid_lookup[row.account_id]
+            if not code:
+                code = name_lookup.get(_normalise(row.account_name), "")
             rows.append(SnapshotRow(
                 account_code=code,
                 account_name=row.account_name,
                 amount=amount,
+                account_id=row.account_id,
             ))
 
     from_date = metadata.get("from_date") or metadata.get("to_date", "")

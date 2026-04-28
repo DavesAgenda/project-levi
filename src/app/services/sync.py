@@ -17,6 +17,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from app.xero.accounts import fetch_and_cache_accounts
 from app.xero.client import (
     fetch_balance_sheet,
     fetch_profit_and_loss,
@@ -86,6 +87,22 @@ def _append_sync_log(entry: dict[str, Any]) -> None:
 # Sync operations
 # ---------------------------------------------------------------------------
 
+async def _refresh_accounts_cache(errors: list[str]) -> None:
+    """Refresh the Xero accounts UUID->code cache; non-fatal on failure.
+
+    Called at the start of every sync so snapshot rows missing a numeric
+    code (Xero P&L returns only a UUID for many accounts) can be
+    resolved deterministically on read. Failures are logged and
+    appended to ``errors`` but don't abort the sync.
+    """
+    try:
+        await fetch_and_cache_accounts()
+    except Exception as exc:
+        msg = f"Accounts cache refresh failed: {exc}"
+        logger.error("Sync: %s", msg)
+        errors.append(msg)
+
+
 async def sync_monthly(today: date | None = None) -> dict[str, Any]:
     """Sync the prior completed month's P&L and Balance Sheet from Xero.
 
@@ -103,6 +120,8 @@ async def sync_monthly(today: date | None = None) -> dict[str, Any]:
 
     snapshots: list[str] = []
     errors: list[str] = []
+
+    await _refresh_accounts_cache(errors)
 
     # Fetch P&L for the month
     try:
@@ -165,6 +184,8 @@ async def sync_now(today: date | None = None) -> dict[str, Any]:
     snapshots: list[str] = []
     errors: list[str] = []
 
+    await _refresh_accounts_cache(errors)
+
     # Fetch each month of the current year individually
     for month in range(1, today.month + 1):
         first_day = date(today.year, month, 1)
@@ -209,11 +230,15 @@ async def sync_now(today: date | None = None) -> dict[str, Any]:
         ytd_end = today.isoformat()
         for cat in tc_data.get("TrackingCategories", []):
             cat_id = cat.get("TrackingCategoryID")
+            cat_name = cat.get("Name", "")
             if cat_id:
                 pl_data = await fetch_profit_and_loss(
                     ytd_start, ytd_end, tracking_category_id=cat_id,
                 )
-                path = save_pl_snapshot(pl_data, ytd_start, ytd_end, tracking=True)
+                path = save_pl_snapshot(
+                    pl_data, ytd_start, ytd_end,
+                    tracking=True, tracking_category_name=cat_name,
+                )
                 snapshots.append(str(path.name))
                 logger.info("Manual sync: saved tracking P&L %s", path.name)
     except Exception as exc:
@@ -268,6 +293,8 @@ async def sync_historical(
     snapshots: list[str] = []
     errors: list[str] = []
     months_synced = 0
+
+    await _refresh_accounts_cache(errors)
 
     for year in range(from_year, to_year + 1):
         last_month = 12

@@ -16,6 +16,7 @@ from app.dependencies.auth import require_role
 from app.models.auth import User
 from app.services.account_mapping import (
     add_account,
+    collect_unmapped_from_snapshot,
     create_category,
     delete_category,
     list_categories,
@@ -23,12 +24,31 @@ from app.services.account_mapping import (
     remove_account,
     rename_category,
 )
+from app.services.dashboard import load_ytd_snapshot
 
 APP_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = APP_DIR / "templates"
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+
+def _render_category_list(
+    request: Request,
+    error: str | None = None,
+) -> HTMLResponse:
+    """Render the category list partial with categories + unmapped accounts."""
+    context = {
+        "categories": list_categories(),
+        "unmapped": collect_unmapped_from_snapshot(load_ytd_snapshot()),
+    }
+    if error is not None:
+        context["error"] = error
+    return templates.TemplateResponse(
+        request,
+        "partials/category_list.html",
+        context,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -42,11 +62,14 @@ async def account_mapping_page(
     user: User = Depends(require_role("admin")),
 ):
     """Render the full account mapping management page."""
-    categories = list_categories()
     return templates.TemplateResponse(
         request,
         "account_mapping.html",
-        {"categories": categories, "user": user},
+        {
+            "categories": list_categories(),
+            "unmapped": collect_unmapped_from_snapshot(load_ytd_snapshot()),
+            "user": user,
+        },
     )
 
 
@@ -61,12 +84,7 @@ async def category_list_partial(
     user: User = Depends(require_role("admin")),
 ):
     """Return the category list partial for htmx swap."""
-    categories = list_categories()
-    return templates.TemplateResponse(
-        request,
-        "partials/category_list.html",
-        {"categories": categories},
-    )
+    return _render_category_list(request)
 
 
 # ---------------------------------------------------------------------------
@@ -86,19 +104,8 @@ async def create_category_endpoint(
     try:
         create_category(section, budget_label, key=key or None)
     except (ValueError, KeyError) as e:
-        categories = list_categories()
-        return templates.TemplateResponse(
-            request,
-            "partials/category_list.html",
-            {"categories": categories, "error": str(e)},
-        )
-
-    categories = list_categories()
-    return templates.TemplateResponse(
-        request,
-        "partials/category_list.html",
-        {"categories": categories},
-    )
+        return _render_category_list(request, error=str(e))
+    return _render_category_list(request)
 
 
 @router.put("/accounts/category/{section}/{key}", response_class=HTMLResponse)
@@ -113,19 +120,8 @@ async def rename_category_endpoint(
     try:
         rename_category(section, key, new_label)
     except (ValueError, KeyError) as e:
-        categories = list_categories()
-        return templates.TemplateResponse(
-            request,
-            "partials/category_list.html",
-            {"categories": categories, "error": str(e)},
-        )
-
-    categories = list_categories()
-    return templates.TemplateResponse(
-        request,
-        "partials/category_list.html",
-        {"categories": categories},
-    )
+        return _render_category_list(request, error=str(e))
+    return _render_category_list(request)
 
 
 @router.delete("/accounts/category/{section}/{key}", response_class=HTMLResponse)
@@ -139,19 +135,8 @@ async def delete_category_endpoint(
     try:
         delete_category(section, key)
     except (ValueError, KeyError) as e:
-        categories = list_categories()
-        return templates.TemplateResponse(
-            request,
-            "partials/category_list.html",
-            {"categories": categories, "error": str(e)},
-        )
-
-    categories = list_categories()
-    return templates.TemplateResponse(
-        request,
-        "partials/category_list.html",
-        {"categories": categories},
-    )
+        return _render_category_list(request, error=str(e))
+    return _render_category_list(request)
 
 
 # ---------------------------------------------------------------------------
@@ -180,19 +165,8 @@ async def add_account_endpoint(
             is_property=(account_type == "property"),
         )
     except (ValueError, KeyError) as e:
-        categories = list_categories()
-        return templates.TemplateResponse(
-            request,
-            "partials/category_list.html",
-            {"categories": categories, "error": str(e)},
-        )
-
-    categories = list_categories()
-    return templates.TemplateResponse(
-        request,
-        "partials/category_list.html",
-        {"categories": categories},
-    )
+        return _render_category_list(request, error=str(e))
+    return _render_category_list(request)
 
 
 @router.delete("/accounts/account/{section}/{category}/{code}", response_class=HTMLResponse)
@@ -207,19 +181,8 @@ async def remove_account_endpoint(
     try:
         remove_account(section, category, code)
     except (ValueError, KeyError) as e:
-        categories = list_categories()
-        return templates.TemplateResponse(
-            request,
-            "partials/category_list.html",
-            {"categories": categories, "error": str(e)},
-        )
-
-    categories = list_categories()
-    return templates.TemplateResponse(
-        request,
-        "partials/category_list.html",
-        {"categories": categories},
-    )
+        return _render_category_list(request, error=str(e))
+    return _render_category_list(request)
 
 
 @router.post("/accounts/move", response_class=HTMLResponse)
@@ -242,16 +205,5 @@ async def move_account_endpoint(
             target_list=target_list,
         )
     except (ValueError, KeyError) as e:
-        categories = list_categories()
-        return templates.TemplateResponse(
-            request,
-            "partials/category_list.html",
-            {"categories": categories, "error": str(e)},
-        )
-
-    categories = list_categories()
-    return templates.TemplateResponse(
-        request,
-        "partials/category_list.html",
-        {"categories": categories},
-    )
+        return _render_category_list(request, error=str(e))
+    return _render_category_list(request)

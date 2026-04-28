@@ -11,6 +11,8 @@ income:
       name: Offering EFT
     - code: '10010'
       name: Offertory Cash
+    - code: '10020'
+      name: Tap Offertory
     legacy_accounts:
     - code: '10005'
       name: Offering Family 8AM
@@ -91,6 +93,8 @@ income:
       name: Surplice Fees (weddings etc)
     - code: '30100'
       name: Building Donations
+    - code: SQ-200000
+      name: Square Other Income
     legacy_accounts:
     - code: '11000'
       name: Grants
@@ -159,6 +163,14 @@ expenses:
       name: Property rental Expense
     - code: '40415'
       name: Intern Accommodation
+    - code: '89030'
+      name: Loane Avenue 39 Costs
+    - code: '89040'
+      name: Loane Avenue 33 Costs
+    - code: '89050'
+      name: Goodhew Street 6 Costs
+    - code: '89020'
+      name: Loane Avenue 35 Costs
   ministry_expenses:
     budget_label: Ministry Expenses
     accounts:
@@ -248,14 +260,6 @@ expenses:
     property_costs:
     - code: '89010'
       name: Hamilton Street 33 Costs
-    - code: '89020'
-      name: Loane Avenue 35 Costs
-    - code: '89030'
-      name: Loane Avenue 39 Costs
-    - code: '89040'
-      name: Loane Avenue 33 Costs
-    - code: '89050'
-      name: Goodhew Street 6 Costs
   diocesan:
     budget_label: Diocesan Costs
     accounts:

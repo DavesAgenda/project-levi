@@ -10,12 +10,24 @@ from __future__ import annotations
 import os
 import re
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
-from app.csv_import import load_chart_of_accounts
-from app.models import Account, BudgetCategory, ChartOfAccounts
+from app.csv_import import build_account_lookup, load_chart_of_accounts
+from app.models import Account, BudgetCategory, ChartOfAccounts, FinancialSnapshot
+from app.services.pl_helpers import infer_pl_section, is_summary_row
+
+
+@dataclass
+class UnmappedSnapshotAccount:
+    """An account in the latest snapshot that isn't mapped to any category."""
+
+    code: str
+    name: str
+    section: str  # "income" or "expenses"
+    amount: float
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent.parent.parent / "config"
 CHART_PATH = CONFIG_DIR / "chart_of_accounts.yaml"
@@ -340,3 +352,39 @@ def find_unmapped_accounts(
     chart = load_chart(path)
     mapped = _all_codes(chart)
     return sorted(c for c in known_codes if c not in mapped)
+
+
+def collect_unmapped_from_snapshot(
+    snapshot: FinancialSnapshot | None,
+    chart: ChartOfAccounts | None = None,
+) -> list[UnmappedSnapshotAccount]:
+    """Return accounts in the snapshot that aren't mapped to any category.
+
+    Mirrors the dashboard's unmapped-detection logic so the mapping admin
+    page surfaces the same accounts that appear as "Uncategorised" in P&L
+    views. Sorted by section (income first) then by amount desc.
+    """
+    if snapshot is None:
+        return []
+    if chart is None:
+        chart = load_chart()
+
+    account_lookup = build_account_lookup(chart)
+    result: list[UnmappedSnapshotAccount] = []
+    for row in snapshot.rows:
+        if is_summary_row(row):
+            continue
+        if row.account_code in account_lookup:
+            continue
+        if row.amount == 0:
+            continue
+        section = infer_pl_section(row.account_code or "", row.account_name)
+        result.append(UnmappedSnapshotAccount(
+            code=row.account_code or "",
+            name=row.account_name,
+            section=section,
+            amount=round(row.amount, 2),
+        ))
+
+    result.sort(key=lambda u: (0 if u.section == "income" else 1, -abs(u.amount)))
+    return result

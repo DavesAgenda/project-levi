@@ -196,9 +196,10 @@ class TestDrilldownSecurity:
 
 
 class TestOAuthScopes:
-    def test_journals_scope_present(self):
+    def test_journals_scope_not_present(self):
+        """Journals API requires Xero Advanced tier — scope must not be requested."""
         from app.xero.oauth import XERO_SCOPES
-        assert "accounting.journals.read" in XERO_SCOPES
+        assert "accounting.journals.read" not in XERO_SCOPES
 
     def test_no_write_scopes(self):
         """We should only have read scopes — no write access to Xero."""

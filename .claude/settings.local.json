@@ -26,7 +26,8 @@
       "Bash(\"/c/Users/tinmu/AppData/Local/Programs/Python/Python314/python.exe\" -m pip install -e \".[dev]\")",
       "Bash(\"/c/Users/tinmu/AppData/Local/Programs/Python/Python314/python.exe\" -m pytest tests/ --tb=short)",
       "Bash(py -3 -c ':*)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/)",
+      "Bash(py:*)"
     ]
   }
 }

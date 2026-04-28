@@ -497,10 +497,18 @@ def load_budget_flat(
     chart: ChartOfAccounts | None = None,
     budgets_dir: Path | None = None,
     chart_path: Path | None = None,
+    xero_overlay: dict[str, float] | None = None,
+    data_dir: Path | None = None,
 ) -> dict[str, float]:
     """Load budget and return flattened {category_key: amount} dict.
 
-    This replaces the old ``dashboard.load_budget()`` function.
+    When a Xero BudgetSummary overlay is available (``data/xero_budget_{year}.json``),
+    it backfills YAML entries that are ``null`` or missing — the hand-maintained
+    YAML remains the source of truth for any explicitly-set amount.
+
+    Args:
+        xero_overlay: Optional ``{account_code: amount}`` override. If None,
+            the overlay file is loaded from disk. Pass ``{}`` to disable.
     """
     bdir = budgets_dir or BUDGETS_DIR
     cp = chart_path or CHART_PATH
@@ -518,7 +526,13 @@ def load_budget_flat(
 
     account_lookup = build_account_lookup(chart)
 
+    if xero_overlay is None:
+        from app.xero.budget_summary import load_xero_budget_overlay
+        xero_overlay = load_xero_budget_overlay(year, data_dir=data_dir)
+
     category_budgets: dict[str, float] = {}
+    claimed_codes: set[str] = set()
+
     for section_name in ("income", "expenses"):
         section_data = raw.get(section_name, {})
         if not isinstance(section_data, dict):
@@ -529,13 +543,30 @@ def load_budget_flat(
             for item_key, amount in group_val.items():
                 if item_key in ("notes", "overrides", "vacancy_weeks"):
                     continue
-                if amount is None:
-                    continue
                 parts = item_key.split("_", 1)
                 code = parts[0] if parts and parts[0].isdigit() else None
-                if code and code in account_lookup:
-                    cat_key = account_lookup[code][0]
-                    category_budgets[cat_key] = category_budgets.get(cat_key, 0) + float(amount)
+                if not (code and code in account_lookup):
+                    continue
+                claimed_codes.add(code)
+                if amount is None:
+                    # YAML left as null — backfill from Xero overlay if present
+                    overlay_amount = xero_overlay.get(code)
+                    if overlay_amount is None:
+                        continue
+                    amount = overlay_amount
+                cat_key = account_lookup[code][0]
+                category_budgets[cat_key] = category_budgets.get(cat_key, 0) + float(amount)
+
+    # Also pick up Xero-budgeted accounts the YAML hasn't mentioned at all.
+    for code, overlay_amount in xero_overlay.items():
+        if code in claimed_codes:
+            continue
+        if code not in account_lookup:
+            continue
+        if overlay_amount == 0:
+            continue
+        cat_key = account_lookup[code][0]
+        category_budgets[cat_key] = category_budgets.get(cat_key, 0) + float(overlay_amount)
 
     # Add computed property income budget (derived from properties.yaml + overrides)
     if "property_income" not in category_budgets:
@@ -548,12 +579,22 @@ def load_budget_flat(
         except (BudgetNotFoundError, BudgetValidationError):
             pass
 
-    # Add computed payroll budget (derived from payroll.yaml staff config)
+    # Add computed payroll budget (derived from payroll.yaml staff config).
+    # When Xero's overlay already contributes to any staff category, trust
+    # Xero as the single source of truth — mixing payroll.yaml numbers on top
+    # double-counts because Xero typically budgets all staff under one or two
+    # broad codes rather than our per-role breakdown.
     if "payroll" in raw.get("expenses", {}):
         from app.services.payroll import _staff_budget_from_config
-        payroll_budgets = _staff_budget_from_config()
-        for cat_key, amount in payroll_budgets.items():
-            if cat_key not in category_budgets:
-                category_budgets[cat_key] = amount
+        payroll_cats = {"ministry_staff", "admin_staff", "ministry_support"}
+        overlay_covers_payroll = any(
+            account_lookup.get(code, ("", None))[0] in payroll_cats
+            for code in xero_overlay
+        )
+        if not overlay_covers_payroll:
+            payroll_budgets = _staff_budget_from_config()
+            for cat_key, amount in payroll_budgets.items():
+                if cat_key not in category_budgets:
+                    category_budgets[cat_key] = amount
 
     return category_budgets

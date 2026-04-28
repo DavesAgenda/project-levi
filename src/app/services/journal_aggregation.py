@@ -267,12 +267,23 @@ def aggregate_ytd(
     year: int | None = None,
     journals_dir: Path | None = None,
     chart_path: Path | None = None,
+    end_month: int | None = None,
 ) -> AggregationResult:
-    """Aggregate all journals for the current year-to-date."""
+    """Aggregate journals for year-to-date.
+
+    If end_month is provided, aggregates through the last day of that month
+    (lets callers exclude an in-progress current month). Otherwise aggregates
+    through today.
+    """
+    import calendar
     today = date.today()
     year = year or today.year
     from_date = f"{year}-01-01"
-    to_date = today.isoformat()
+    if end_month is not None:
+        last_day = calendar.monthrange(year, end_month)[1]
+        to_date = date(year, end_month, last_day).isoformat()
+    else:
+        to_date = today.isoformat()
 
     entries = load_journals(from_date=from_date, to_date=to_date, journals_dir=journals_dir)
     return aggregate_journals(

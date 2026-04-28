@@ -15,26 +15,71 @@
     <div>
       <h1 class="text-h1">Dashboard</h1>
       {% if data.has_data %}
+      {% set month_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}
       <p class="text-caption mt-1" style="opacity: 0.7;">
         Period: {{ data.snapshot_period }} &middot; As of {{ data.snapshot_date }}
-        {% if view_mode == "ytd" %} (Year to Date){% else %} (Full Year){% endif %}
+        {% if view_mode == "ytd" %} (Year to Date through {{ month_names[selected_month - 1] }} {{ selected_year }}){% else %} (Full Year){% endif %}
       </p>
       {% endif %}
     </div>
     {% if data.has_data %}
-    <div class="flex items-center gap-2">
-      <a href="?view_mode=ytd&source={{ source }}"
-         class="px-3 py-1.5 rounded-btn text-xs font-semibold transition-colors min-h-btn
-                {% if view_mode == 'ytd' %}text-white{% else %}text-primary border border-primary hover:bg-primary hover:text-white{% endif %}"
-         {% if view_mode == 'ytd' %}style="background-color: var(--primary);"{% endif %}>
-        YTD
-      </a>
-      <a href="?view_mode=full_year&source={{ source }}"
-         class="px-3 py-1.5 rounded-btn text-xs font-semibold transition-colors min-h-btn
-                {% if view_mode == 'full_year' %}text-white{% else %}text-primary border border-primary hover:bg-primary hover:text-white{% endif %}"
-         {% if view_mode == 'full_year' %}style="background-color: var(--primary);"{% endif %}>
-        Full Year
-      </a>
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+      <div class="flex items-center gap-2">
+        <a href="?view_mode=ytd&source={{ source }}&budget_mode={{ budget_mode }}&year={{ selected_year }}&month={{ selected_month }}"
+           class="px-3 py-1.5 rounded-btn text-xs font-semibold transition-colors min-h-btn
+                  {% if view_mode == 'ytd' %}text-white{% else %}text-primary border border-primary hover:bg-primary hover:text-white{% endif %}"
+           {% if view_mode == 'ytd' %}style="background-color: var(--primary);"{% endif %}>
+          YTD
+        </a>
+        <a href="?view_mode=full_year&source={{ source }}&budget_mode={{ budget_mode }}&year={{ selected_year }}&month={{ selected_month }}"
+           class="px-3 py-1.5 rounded-btn text-xs font-semibold transition-colors min-h-btn
+                  {% if view_mode == 'full_year' %}text-white{% else %}text-primary border border-primary hover:bg-primary hover:text-white{% endif %}"
+           {% if view_mode == 'full_year' %}style="background-color: var(--primary);"{% endif %}>
+          Full Year
+        </a>
+      </div>
+      {% if view_mode == 'ytd' %}
+      <div class="flex items-center gap-2" title="Budget basis: pro-rated by month (default) or full-year totals to match Xero's Budget Variance report">
+        <span class="text-caption" style="opacity: 0.7;">Budget:</span>
+        <a href="?view_mode=ytd&source={{ source }}&budget_mode=prorated&year={{ selected_year }}&month={{ selected_month }}"
+           class="px-3 py-1.5 rounded-btn text-xs font-semibold transition-colors min-h-btn
+                  {% if budget_mode == 'prorated' %}text-white{% else %}text-primary border border-primary hover:bg-primary hover:text-white{% endif %}"
+           {% if budget_mode == 'prorated' %}style="background-color: var(--primary);"{% endif %}>
+          Pro-rated
+        </a>
+        <a href="?view_mode=ytd&source={{ source }}&budget_mode=full_year&year={{ selected_year }}&month={{ selected_month }}"
+           class="px-3 py-1.5 rounded-btn text-xs font-semibold transition-colors min-h-btn
+                  {% if budget_mode == 'full_year' %}text-white{% else %}text-primary border border-primary hover:bg-primary hover:text-white{% endif %}"
+           {% if budget_mode == 'full_year' %}style="background-color: var(--primary);"{% endif %}>
+          Full Year
+        </a>
+      </div>
+      {% endif %}
+      {% if view_mode == 'ytd' %}
+      <form method="get" action="/" class="flex items-center gap-2">
+        <input type="hidden" name="view_mode" value="ytd">
+        <input type="hidden" name="source" value="{{ source }}">
+        <input type="hidden" name="budget_mode" value="{{ budget_mode }}">
+        <select name="year"
+                class="bg-surface border border-outline rounded-btn px-3 py-2 text-caption font-body focus:border-primary">
+          {% for y in range(current_year - 2, current_year + 1) %}
+          <option value="{{ y }}" {{ 'selected' if y == selected_year }}>{{ y }}</option>
+          {% endfor %}
+        </select>
+        <select name="month"
+                class="bg-surface border border-outline rounded-btn px-3 py-2 text-caption font-body focus:border-primary">
+          {% for m in range(1, 13) %}
+          <option value="{{ m }}" {{ 'selected' if m == selected_month }}>
+            {{ ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1] }}
+          </option>
+          {% endfor %}
+        </select>
+        <button type="submit"
+                class="bg-primary text-white font-semibold rounded-btn min-h-btn px-4 py-2 hover:bg-primary-hover transition-colors text-caption">
+          Update
+        </button>
+      </form>
+      {% endif %}
     </div>
     {% endif %}
     {% if not data.has_data %}
@@ -140,6 +185,8 @@
         summary=income_summary,
         sort_by="label",
         sort_dir="asc",
+        drilldown_url="/dashboard/drilldown",
+        drilldown_extra="?year=" ~ selected_year ~ "&month=" ~ (selected_month if view_mode == "ytd" else 12) ~ "&view=ytd",
     ) }}
 
     {# Expenses Section #}
@@ -159,6 +206,8 @@
         summary=expense_summary,
         sort_by="label",
         sort_dir="asc",
+        drilldown_url="/dashboard/drilldown",
+        drilldown_extra="?year=" ~ selected_year ~ "&month=" ~ (selected_month if view_mode == "ytd" else 12) ~ "&view=ytd",
     ) }}
   </div>
   {% endif %}

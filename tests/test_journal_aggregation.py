@@ -398,3 +398,26 @@ class TestConvenienceFunctions:
         result = aggregate_ytd(year=2026, journals_dir=tmp_path, chart_path=chart_path)
         assert result.journal_count == 2
         assert result.total_income == 2500.0
+
+    def test_aggregate_ytd_respects_end_month(self, tmp_path, chart_path):
+        """end_month cutoff excludes journals from later months and stops
+        to_date at the last day of the selected month."""
+        for month, amount in [(1, 1000.0), (2, 1500.0), (4, 3000.0)]:
+            month_dir = tmp_path / "2026" / f"2026-{month:02d}"
+            month_dir.mkdir(parents=True)
+            entry = _make_entry(f"j-{month}", f"2026-{month:02d}-15", [
+                _line("10001", "Offering EFT", amount, "REVENUE"),
+                _line("90001", "Bank", -amount, "BANK"),
+            ])
+            (month_dir / "journals.json").write_text(
+                json.dumps([entry.model_dump()], default=str),
+                encoding="utf-8",
+            )
+
+        result = aggregate_ytd(
+            year=2026, journals_dir=tmp_path, chart_path=chart_path, end_month=3,
+        )
+        assert result.journal_count == 2  # Jan + Feb only; Apr excluded
+        assert result.total_income == 2500.0
+        assert result.to_date == "2026-03-31"
+        assert result.from_date == "2026-01-01"

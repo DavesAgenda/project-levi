@@ -97,6 +97,7 @@ class SnapshotRow(BaseModel):
     account_code: str
     account_name: str
     amount: float
+    account_id: str | None = None  # Xero account UUID (when resolvable)
 
 
 class FinancialSnapshot(BaseModel):

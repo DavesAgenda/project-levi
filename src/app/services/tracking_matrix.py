@@ -211,10 +211,13 @@ async def compute_tracking_matrix(
     except Exception:
         logger.info("Xero API unavailable — falling back to snapshot for tracking P&L")
 
-    # Fallback to snapshot
+    # Fallback to snapshot — pass category name to load the right file
     if raw is None:
+        cat_name = selected_cat.name if selected_cat else None
         raw = _load_tracking_pl_snapshot(
-            from_date, to_date, snapshot_dir=snapshot_dir,
+            from_date, to_date,
+            tracking_category_name=cat_name,
+            snapshot_dir=snapshot_dir,
         )
 
     if raw is None:
@@ -241,16 +244,43 @@ def _load_tracking_pl_snapshot(
     from_date: str,
     to_date: str,
     *,
+    tracking_category_name: str | None = None,
     snapshot_dir: Path | None = None,
 ) -> dict[str, Any] | None:
-    """Load a tracking P&L snapshot from disk."""
+    """Load a tracking P&L snapshot from disk.
+
+    Searches for a snapshot matching the tracking category name slug.
+    Falls back to any ``pl_*_by-*.json`` if no specific match is found.
+    """
+    import re as _re
+
     snap_dir = snapshot_dir or SNAPSHOTS_DIR
     if not snap_dir.exists():
         return None
 
-    # Look for pl_*_by-ministry.json files
+    # Build a slug for the requested category (e.g. "Congregations" -> "congregations")
+    if tracking_category_name:
+        slug = _re.sub(r"[^a-z0-9]+", "-", tracking_category_name.lower()).strip("-")
+        # Try exact match first
+        pattern = f"pl_*_by-{slug}.json"
+        candidates = sorted(
+            snap_dir.glob(pattern),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        for path in candidates:
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if "response" in data:
+                    return data["response"]
+                if "Reports" in data:
+                    return data
+            except (json.JSONDecodeError, KeyError):
+                continue
+
+    # Fallback: any tracking P&L snapshot (legacy "by-ministry" or other)
     candidates = sorted(
-        snap_dir.glob("pl_*_by-ministry*.json"),
+        snap_dir.glob("pl_*_by-*.json"),
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
@@ -276,7 +306,9 @@ def _build_matrix(
 ) -> TrackingMatrixData:
     """Build the matrix from a parsed P&L report with tracking columns."""
     account_lookup = build_account_lookup(chart)
-    column_headers = list(parsed.column_headers)  # tracking option names
+    name_lookup = _build_name_lookup(chart)
+    column_headers = [h for h in parsed.column_headers if h != "Total"]  # exclude Xero's computed Total
+    has_xero_total = "Total" in parsed.column_headers
 
     # Aggregate amounts by (budget_label, category_key, section) x column
     aggregated: dict[str, MatrixRow] = {}
@@ -290,9 +322,9 @@ def _build_matrix(
             if row.account_id:
                 match = _find_by_uuid(row.account_id, chart, account_lookup)
 
-            # Fallback: try matching account_name to codes in the lookup
+            # Fallback: try matching account_name to codes/names in the lookup
             if match is None:
-                match = _find_by_name(row.account_name, account_lookup)
+                match = _find_by_name(row.account_name, account_lookup, name_lookup)
 
             if match is None:
                 # Unknown account — skip it
@@ -313,7 +345,15 @@ def _build_matrix(
             for header in column_headers:
                 amount = row.values.get(header, Decimal("0"))
                 matrix_row.values[header] += amount
-                matrix_row.total += amount
+            # Use Xero's pre-computed Total when available — it includes
+            # amounts from accounts with no tracking option assigned, which
+            # would otherwise be lost when we exclude the "Total" column.
+            if has_xero_total:
+                matrix_row.total += row.values.get("Total", Decimal("0"))
+            else:
+                matrix_row.total += sum(
+                    row.values.get(h, Decimal("0")) for h in column_headers
+                )
 
     # Split into income and expense rows, sorted by (section, label)
     all_rows = sorted(
@@ -512,14 +552,35 @@ def compute_tracking_matrix_from_journals(
     )
 
 
+def _build_name_lookup(
+    chart: ChartOfAccounts,
+) -> dict[str, tuple[str, str, str, bool]]:
+    """Build {account_name_lower: (cat_key, section, label, is_legacy)} from chart.
+
+    Xero P&L report rows contain account names without codes, so we need
+    to match on name directly.
+    """
+    name_map: dict[str, tuple[str, str, str, bool]] = {}
+    for section_name, section_field in [("income", chart.income), ("expenses", chart.expenses)]:
+        for cat_key, cat in section_field.items():
+            for acct in cat.accounts:
+                name_map[acct.name.lower().strip()] = (cat_key, section_name, cat.budget_label, False)
+            for acct in cat.legacy_accounts:
+                name_map[acct.name.lower().strip()] = (cat_key, section_name, cat.budget_label, True)
+            for acct in cat.property_costs:
+                name_map[acct.name.lower().strip()] = (cat_key, section_name, cat.budget_label, False)
+    return name_map
+
+
 def _find_by_name(
     account_name: str,
     account_lookup: dict[str, tuple[str, str, str, bool]],
+    name_lookup: dict[str, tuple[str, str, str, bool]] | None = None,
 ) -> tuple[str, str, str, bool] | None:
     """Try to match an account name to a budget category.
 
     Xero report rows show "Code - Name" or just "Name".  Try to extract
-    the account code from the name string.
+    the account code from the name string, then fall back to name matching.
     """
     import re
 
@@ -534,5 +595,9 @@ def _find_by_name(
     stripped = account_name.strip()
     if stripped in account_lookup:
         return account_lookup[stripped]
+
+    # Fall back to name-based matching
+    if name_lookup:
+        return name_lookup.get(stripped.lower())
 
     return None

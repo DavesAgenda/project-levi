@@ -19,7 +19,7 @@
     {{ sortable_table(id="income", columns=[...], rows=row_data, summary=summary_data) }}
 #}
 
-{% macro sortable_table(id, columns, rows, summary=none, sort_by=none, sort_dir="asc") %}
+{% macro sortable_table(id, columns, rows, summary=none, sort_by=none, sort_dir="asc", drilldown_url=none, drilldown_extra="") %}
 {% set col_keys = columns | map(attribute='key') | list %}
 <div class="overflow-x-auto">
   <table class="w-full border-collapse" id="table-{{ id }}">
@@ -37,7 +37,9 @@
     </thead>
     <tbody>
       {% for row in rows | sort(attribute=(sort_by or columns[0].key)) %}
-      <tr class="border-b border-muted {{ 'bg-surface' if loop.index0 % 2 == 0 else 'bg-bg' }}" data-sortable-row>
+      {% set has_drilldown = drilldown_url and row.get('_category_key') %}
+      <tr class="border-b border-muted {{ 'bg-surface' if loop.index0 % 2 == 0 else 'bg-bg' }}{{ ' cursor-pointer hover:bg-muted/50' if has_drilldown }}" data-sortable-row
+          {% if has_drilldown %}data-drilldown-url="{{ drilldown_url }}/{{ row['_section'] }}/{{ row['_category_key'] }}{{ drilldown_extra }}"{% endif %}>
         {% for col in columns %}
         {% set val = row[col.key] %}
         <td class="px-6 py-3 {{ 'text-left' if col.align == 'left' else 'text-right' }} {{ 'font-mono' if col.format != 'string' }}"
@@ -57,6 +59,11 @@
             <span style="opacity: 0.5;">—</span>
             {% endif %}
           {% else %}
+            {% if loop.first and has_drilldown %}
+            <svg class="drilldown-chevron inline-block w-4 h-4 mr-1 -ml-1 transition-transform duration-200 text-neutral align-middle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+            {% endif %}
             {{ val }}
           {% endif %}
         </td>
@@ -155,15 +162,64 @@
         }
       });
 
+      // Collapse open drilldowns before re-ordering
+      tbody.querySelectorAll('tr.drilldown-row').forEach(function(dr) { dr.remove(); });
+      tbody.querySelectorAll('.drilldown-chevron').forEach(function(ch) { ch.style.transform = ''; });
+
       // Re-append sorted rows before the summary row
       const summaryRow = tbody.querySelector('tr[data-summary-row]');
       rows.forEach(function(row, idx) {
         // Update zebra striping
-        row.className = 'border-b border-muted ' + (idx % 2 === 0 ? 'bg-surface' : 'bg-bg');
+        var cls = 'border-b border-muted ' + (idx % 2 === 0 ? 'bg-surface' : 'bg-bg');
+        if (row.dataset.drilldownUrl) cls += ' cursor-pointer hover:bg-muted/50';
+        row.className = cls;
+        row.setAttribute('data-sortable-row', '');
         tbody.insertBefore(row, summaryRow);
       });
     });
   });
 })();
+
+{% if drilldown_url %}
+(function() {
+  var table = document.getElementById('table-{{ id }}');
+  if (!table) return;
+  var tbody = table.querySelector('tbody');
+
+  tbody.addEventListener('click', function(e) {
+    var row = e.target.closest('tr[data-drilldown-url]');
+    if (!row) return;
+    if (e.target.closest('th')) return;
+
+    var nextRow = row.nextElementSibling;
+    if (nextRow && nextRow.classList.contains('drilldown-row')) {
+      nextRow.remove();
+      var ch = row.querySelector('.drilldown-chevron');
+      if (ch) ch.style.transform = '';
+      return;
+    }
+
+    var url = row.dataset.drilldownUrl;
+    var colCount = row.children.length;
+    var detailRow = document.createElement('tr');
+    detailRow.className = 'drilldown-row';
+    var td = document.createElement('td');
+    td.setAttribute('colspan', colCount);
+    td.className = 'p-0';
+    td.innerHTML = '<div class="flex items-center justify-center py-4">' +
+      '<svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">' +
+      '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
+      '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>' +
+      '</svg></div>';
+    detailRow.appendChild(td);
+    row.after(detailRow);
+
+    var chevron = row.querySelector('.drilldown-chevron');
+    if (chevron) chevron.style.transform = 'rotate(90deg)';
+
+    htmx.ajax('GET', url, {target: td, swap: 'innerHTML'});
+  });
+})();
+{% endif %}
 </script>
 {% endmacro %}
